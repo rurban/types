@@ -1,4 +1,4 @@
-types version 0.01
+types version 0.02
 ==================
 
 This module allows you to do strict typing for perl.
@@ -11,6 +11,12 @@ To install this module type the following:
    make
    make test
    make install
+
+or
+   perl Build.PL
+   ./Build
+   ./Build test
+   ./Build install
 
 DEPENDENCIES
 
@@ -26,4 +32,5 @@ Copyright (C) 2002 Arthur Bergman
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 
+
 

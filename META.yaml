@@ -8,4 +8,4 @@ recommends: {}
 requires:
   optimize: 0.02
   perl: 5.8
-version: 0.01
+version: 0.02

@@ -6,3 +6,4 @@ MANIFEST
 README
 lib/types.pm
 t/1.t
+t/2.t
