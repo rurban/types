@@ -1,5 +1,8 @@
 Revision history for Perl extension types.
 
+0.05   - Added compile argument type checking, cleaned up code
+       - Added support for CORE::int returning type int
+
 0.03	
 	- Added support for return values.	
 	- Added lexical scoping support

@@ -6,14 +6,15 @@ use warnings;
 use optimize;
 
 our $VERSION;
-$VERSION = do { my @r = (q$Revision: 1.4 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+$VERSION = do { my @r = (q$Revision: 1.5 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 
 my %typed;
 my %op_returns;
 my %function_returns;
+my %function_params;
 use constant SVpad_TYPED => 0x40000000;
-use B qw(OPpTARGET_MY OPf_MOD);
+use B qw(OPpTARGET_MY OPf_MOD SVf_POK);
 use B::Utils;
 
 our %const_map = (
@@ -42,12 +43,60 @@ sub check {
     unless($optimize::state->private & 0x00000010) {
 	return;
     }
+
+
+#    if($op->name eq 'padsv') {
+#	print $op->flags ."\n";
+#    }
+
+    if(ref($op) eq 'B::PADOP' && $op->name eq 'gv') {
+#	$op->dump;
+	my $target = (($cv->PADLIST->ARRAY)[1]->ARRAY)[$op->padix];
+#	$target->dump;
+#	exit;
+    }
+
+    if($op->name eq 'int') {
+	$op_returns{$op->seq}->{type} = 'int';
+	$op_returns{$op->seq}->{name} = 'int()';
+    }
+
     if($op->name eq 'padsv') {
 	my $target = (($cv->PADLIST->ARRAY)[0]->ARRAY)[$op->targ];
 	if(UNIVERSAL::isa($target,'B::SV') && $target->FLAGS & SVpad_TYPED) {
 	    $typed{$cv->ROOT->seq}->{$op->targ}->{type} = $target->SvSTASH->NAME;
 	    $typed{$cv->ROOT->seq}->{$op->targ}->{name} = $target->PV;
+	} elsif(UNIVERSAL::isa($target,'B::SV') && 
+		exists($typed{$cv->ROOT->seq}->{$target->PV})) {
+	    $typed{$cv->ROOT->seq}->{$op->targ} = $typed{$cv->ROOT->seq}->{$target->PV};
 	}
+    }
+    if($cv->FLAGS & SVf_POK && !$function_params{$cv->START->seq}) {
+	#we have, we have, we have arguments
+	my @type;
+	my @name;
+	my $i = 1;
+	foreach (split ",", $cv->PV)  {
+	    my ($type, $sigil, $name) = split /\b/, $_;
+	#    print "$type - $sigil - $name \n";	    
+	    push @type, $type;
+	    if($sigil && $name)  {
+		push @name, $sigil.$name;
+		$typed{$cv->ROOT->seq}->{"$sigil$name"}->{type} = $type;
+		$typed{$cv->ROOT->seq}->{"$sigil$name"}->{name} = $sigil.$name;
+	    } else {
+		push @name, "Argument $i";
+	    }
+	    $i++;
+	}
+
+	$function_params{$cv->START->seq}->{name} = \@name;
+	$function_params{$cv->START->seq}->{type} = \@type;
+
+
+	#print $cv->PV . "\n";
+	$cv->PV(";@");
+
     }
 
     if(ref($op->next) ne 'B::NULL' &&
@@ -76,10 +125,46 @@ sub check {
 		    $op_returns{$op->seq + $i}->{name} = $sv->STASH->NAME . "::" . $sv->SAFENAME."()";
 #		print "AND IT HAS A RETURN VALUE $i\n";
 		}
+		if(exists($function_params{$foo})) {
+		    my $param_list = $entersub->first();
+		    get_list_proto($param_list, $cv);
+		    $param_list = delete($op_returns{$param_list->seq});
+		    pop(@{$param_list->{type}});
+		    pop(@{$param_list->{name}});
+#		    print Data::Dumper::Dumper($function_params{$foo});
+#		    print Data::Dumper::Dumper($param_list);
+		    match_protos($function_params{$foo}, $param_list);
+		}
 #	    $sv->CV->dump();
 	    }
 	}
     }
+
+sub match_protos {
+    my ($target, $source) = @_;
+    my $targets = scalar @{$target->{name}} - 1;
+    my $sources = scalar @{$source->{name}} - 1;
+
+    if($sources < $targets) {
+	die "Not enough items in list at " . 
+	    $optimize::state->file . ":" . 
+		$optimize::state->line . "\n";
+    }
+    foreach my $i (0..$targets) {
+	my ($target_name, $target_type) = 
+	    ($target->{name}->[$i], $target->{type}->[$i]);
+	my ($source_name, $source_type) = 
+	    ($source->{name}->[$i], $source->{type}->[$i]);
+	if((!$target_type->isa($source_type) and !$source_type->isa($target_type)) or ($target_type->can('check') && !$target_type->check($source_type))) {
+	    die "Type mismatch in list for" . 
+		" $source_type ($source_name) to $target_type ($target_name) at " . 
+		    $optimize::state->file . ":" . 
+			$optimize::state->line . "\n";
+	}
+
+	 
+    }
+}
     
     if(ref($op->next) ne 'B::NULL') {
 #	print $op->name . " - " . $op->next->name . "\n";
@@ -175,7 +260,7 @@ sub check {
 	} elsif($op->first->name eq 'null' &&
 		$op->first->oldname eq 'list') {
 	    get_list_proto($op->first,$cv);
-	}
+	} 
 
 	if($op->last->name eq 'padsv'
 	   && exists($typed{$cv->ROOT->seq}->{$op->last->targ})) {
@@ -417,13 +502,23 @@ types - Perl pragma for strict type checking
 This pragma uses the optimzie module to analyze the optree and
 turn on compile time type checking
 
+=head1 SYNOPSIS
+
+    my float $foo = "string"; #compile time error
+    sub foo (int $foo) { my ($foo) = @_ };
+    foo("hi"); #compile time error   
+
+    my int $int;
+    sub foo { my float $foo; return $foo }
+    $int = $foo; # compile time error
+
 =head1 DESCRIPTION
 
 This pragma uses the optimzie module to analyze the optree and
 turn on compile time type checking
 
-Currently we support int, float, number and string, the implict
-casting rules are as follows.
+Currently we support int, float, number ,string and user defined classes, 
+the implict casting rules are as follows.
 
     
     int    < > number
@@ -435,6 +530,19 @@ casting rules are as follows.
 Normall type casting is allowed both up and down the inheritance tree,
 so in theory user defined classes should work already, requires one
 to do use base or set @ISA at compileitme in a BEGIN block.
+
+=head2 Return values
+
+Return values are implicitly figerd out by the subroutine, this includes 
+both falling of the end or by expliticly calling return, if two return 
+values of the same sub differ you will get an error message.
+
+=head2 Arguments
+
+Arguments are declared with prototype syntax, they can either be named
+or just typed, if typed only the calling convertions are checked, if
+named then that named lexical will get that type without the need
+for expliticty typing it, thus allowing list assignment from @_
 
 =head2 EXPORT
 

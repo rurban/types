@@ -9,4 +9,4 @@ requires:
   B::Generate: 1.06
   optimize: 0.02
   perl: 5.8
-version: 0.04
+version: 0.05
