@@ -1,0 +1,8 @@
+Revision history for types
+
+0.01  Thu Jun 27 20:16:27 2002
+	- added support for int and float
+        - added detection of sassign
+	- original version; created by h2xs 1.22 with options
+		-n types -X
+
