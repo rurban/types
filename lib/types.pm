@@ -5,11 +5,16 @@ use strict;
 use warnings;
 use optimize;
 
-our $VERSION = '0.02';
+our $VERSION;
+$VERSION = do { my @r = (q$Revision: 1.4 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+
 
 my %typed;
 my %op_returns;
+my %function_returns;
 use constant SVpad_TYPED => 0x40000000;
+use B qw(OPpTARGET_MY OPf_MOD);
+use B::Utils;
 
 our %const_map = (
 	  "B::NV" => 'float',
@@ -17,10 +22,26 @@ our %const_map = (
 	  "B::PV" => 'string',
 	    );
 
-sub entry {
+
+sub compare_type {
+    my($a,$b) = @_;
+    if($a eq $b) {
+	return 1;
+    }
+    return 0;
+}
+
+sub B::NULL::name { "void" }
+use Data::Dumper;
+sub check {
+    my $class = shift;
     my $op = shift;
     my $cv = $op->find_cv();
 
+    #if($^H & 0x00000010) {
+    unless($optimize::state->private & 0x00000010) {
+	return;
+    }
     if($op->name eq 'padsv') {
 	my $target = (($cv->PADLIST->ARRAY)[0]->ARRAY)[$op->targ];
 	if(UNIVERSAL::isa($target,'B::SV') && $target->FLAGS & SVpad_TYPED) {
@@ -29,14 +50,120 @@ sub entry {
 	}
     }
 
-    if($op->name eq 'sassign') {
-	my ($lhs, $rhs, $const);
-	my ($lhs_v, $rhs_v);
+    if(ref($op->next) ne 'B::NULL' &&
+       ($op->next->name =~/2cv$/ || 
+	($op->next->name eq 'null' && $op->next->oldname =~/2cv$/))) {
+	my $entersub = $op->next;
+	my $i = 1;
+
+	while($entersub->name ne 'entersub' && 
+	      ref($entersub->next) ne 'B::NULL') {
+	    $i++ if($entersub->name ne 'null');
+	    $entersub = $entersub->next;
+
+	}
+	if($entersub->name eq 'entersub') {
+	    my $sv; 
+	    if(ref($op) eq 'B::PADOP') {
+		$sv = (($cv->PADLIST->ARRAY)[1]->ARRAY)[$op->padix];
+	    } else {
+		die;
+	    }
+	    if(ref($sv->CV) ne 'B::SPECIAL') {
+		my $foo = $sv->CV->START->seq;
+		if(exists($function_returns{$foo})) {
+		    $op_returns{$op->seq + $i}->{type} = $function_returns{$foo}->{type};
+		    $op_returns{$op->seq + $i}->{name} = $sv->STASH->NAME . "::" . $sv->SAFENAME."()";
+#		print "AND IT HAS A RETURN VALUE $i\n";
+		}
+#	    $sv->CV->dump();
+	    }
+	}
+    }
+    
+    if(ref($op->next) ne 'B::NULL') {
+#	print $op->name . " - " . $op->next->name . "\n";
+    }
+    if(ref($op->next) ne 'B::NULL' &&
+       ref($op->next->next) ne 'B::NULL' &&
+       $op->next->next->name eq 'entersub') {
+#	print "sub entry\n";
+    }
+
+
+    if(ref($op) eq 'B::LISTOP' && $op->first->name eq 'pushmark') {
+	get_list_proto($op,$cv);
+    }    
+    
+
+    if(ref($op->next) ne 'B::NULL' &&
+       ref($cv->START) ne 'B::NULL' &&
+       ($op->next->name eq 'lineseq' &&
+	$op->next->next->name =~/^leave/) ||
+       $op->next->name eq 'return') {
+	my ($type, $value, $const) = get_type($op, $cv);
+	my $lineseq = $op->next;
+	my $leave = $lineseq->next;
+
+      	if(exists($function_returns{$cv->START->seq}) &&
+	   $function_returns{$cv->START->seq}->{type} ne $type) {
+	    die "Return type mismatch: " . $op->name . 
+		" $type at " . 
+		    $optimize::state->file . ":" . 
+			$optimize::state->line . " does not match" .
+			    " return value $function_returns{$cv->START->seq}->{type}".
+				" at $function_returns{$cv->START->seq}->{file}\n";
+	    
+	    
+	    
+	}
+	
+	
+	my $subname = "";
+	
+	if(ref($cv->GV) ne 'B::SPECIAL' && $cv->GV->SAFENAME ne '__ANON__') {
+	    $subname = $cv->GV->STASH->NAME . "::" . $cv->GV->SAFENAME;
+	}
+	if($subname && exists($function_returns{$subname}) &&
+	   $function_returns{$subname}->{type} ne $type) {
+	    die "Function $subname redefined with a different type (was $function_returns{$subname}->{type} now $type) at " . $optimize::state->file . ":" . $optimize::state->line . "\n";
+	}
+
+
+	
+	$function_returns{$cv->START->seq}->{type}  = $type;
+	$function_returns{$cv->START->seq}->{name} = $value;
+	$function_returns{$cv->START->seq}->{file} = $optimize::state->file . ":" . $optimize::state->line;
+
+	if($subname) {
+	    $function_returns{$subname} = $function_returns{$cv->START->seq};
+#	    print "GOT subname $subname\n";
+	}
+#	print "scope leave retval ($type, $value): " . $op->name . "-" . $lineseq->next->name . "\n";
+
+
+    }
+
+
+
+
+
+    if(ref($op) eq 'B::BINOP') {
+	
+	my ($lhs, $rhs, $target, $expr, $const, $mod);
+	my ($lhs_v, $rhs_v, $target_v, $expr_v);
+	
+
+	if($op->private & OPpTARGET_MY && 
+	   exists($typed{$cv->ROOT->seq}->{$op->targ})) {
+		$target   = $typed{$cv->ROOT->seq}->{$op->targ}->{type};
+		$target_v = $typed{$cv->ROOT->seq}->{$op->targ}->{name};
+	}
+
 	if($op->first->name eq 'padsv'
 	   && exists($typed{$cv->ROOT->seq}->{$op->first->targ})) {
 	    $rhs    = $typed{$cv->ROOT->seq}->{$op->first->targ}->{type};
 	    $rhs_v  = $typed{$cv->ROOT->seq}->{$op->first->targ}->{name};
-
 	} elsif(exists($op_returns{$op->first->seq})) {
 	    $rhs = $op_returns{$op->first->seq}->{type};
 	    $rhs_v = $op_returns{$op->first->seq}->{name};
@@ -44,43 +171,203 @@ sub entry {
 		exists($const_map{ref($op->first->sv)})) {
 	    $rhs = $const_map{ref($op->first->sv)};
 	    $rhs_v = "constant '" . $op->first->sv->sv."'";
-
+	    $const++;
+	} elsif($op->first->name eq 'null' &&
+		$op->first->oldname eq 'list') {
+	    get_list_proto($op->first,$cv);
 	}
+
 	if($op->last->name eq 'padsv'
 	   && exists($typed{$cv->ROOT->seq}->{$op->last->targ})) {
-	  ## okay, are we assigning a constant ?
+	    $lhs    = $typed{$cv->ROOT->seq}->{$op->last->targ}->{type};
+	    $lhs_v  = $typed{$cv->ROOT->seq}->{$op->last->targ}->{name};
+	    if($op->last->flags & OPf_MOD) {
+		die "target should be empty" if($target);
+		$target = $lhs;
+		$target_v = $lhs_v;
+		$mod++;
+	    }
+	} elsif(exists($op_returns{$op->last->seq})) {
+	    $lhs = $op_returns{$op->last->seq}->{type};
+	    $lhs_v = $op_returns{$op->last->seq}->{name};
+	} elsif($op->last->name eq 'const' && 
+		exists($const_map{ref($op->last->sv)})) {
+	    $lhs = $const_map{ref($op->last->sv)};
+	    $lhs_v = "constant '" . $op->last->sv->sv."'";
 
-	  $lhs    = $typed{$cv->ROOT->seq}->{$op->last->targ}->{type};
-	  $lhs_v  = $typed{$cv->ROOT->seq}->{$op->last->targ}->{name};
+	} elsif($op->last->name eq 'null' &&
+		$op->last->oldname eq 'list') {
+	    get_list_proto($op->first,$cv);
 	}
 
-	return if(!$lhs and $op->first->name eq 'const');
+
+	$lhs_v = $lhs = "unknown" unless($lhs);
+	$rhs_v = $rhs = "unknown" unless($rhs);
 	
-#	print "$lhs - $rhs\n";
-#	print "$lhs->isa($rhs): ". $lhs->isa($rhs) . "\n";
-#	print "$rhs->isa($lhs): ". $rhs->isa($lhs) . "\n";
+	$target_v = $target = "" unless($target);
 
-	$lhs = "unknown" unless($lhs);
-	$rhs = "unknown" unless($rhs);
-	if((!$lhs->isa($rhs) and !$rhs->isa($lhs)) or ($lhs->can('check') && !$lhs->check($rhs))) {
-	  die "Type mismatch, can't assign $rhs ($rhs_v) to $lhs ($lhs_v) at " . 
-	    $optimize::state->file . ":" . $optimize::state->line . "\n";
+
+	return if($target eq '' && $const);
+
+
+	#first lets deterimne what the expression returns
+	# if they are equal the expression returns that
+	# otherwise it returns what is higher on he inclusion team
+
+	
+	{
+	    my($is_lhs, $is_rhs) = (0,0);
+	    if($lhs->can("check") && $lhs->check($rhs)) {
+		$is_lhs = 1;
+	    } elsif($lhs->isa($rhs)) {
+		$is_lhs = 1;
+	    }
+
+	    if($rhs->can("check") && $rhs->check($lhs)) {
+		$is_rhs = 1;
+	    } elsif($rhs->isa($lhs)) {
+		$is_rhs = 1;
+	    }
+	    if($is_lhs && $is_rhs) {
+		$expr = $lhs;
+
+	    } elsif($is_lhs) {
+		$expr = $lhs;
+#		print "$lhs < $rhs\n";
+	    } elsif($is_rhs) {
+		$expr = $rhs;
+#		print "$rhs < $lhs\n";
+	    } else {
+		die "Type mismatch, can't " . $op->name . 
+		    " $rhs ($rhs_v) to $lhs ($lhs_v) at " . 
+			$optimize::state->file . ":" . 
+			    $optimize::state->line . "\n";
+	    }
+	    $expr_v = "$lhs_v, $rhs_v";
+#	    print "Expression returns ($expr) ($expr_v)" .
+#		$optimize::state->file . ": . " . 
+#		    $optimize::state->line . "\n";
 	}
-	$op_returns{$op->seq}->{type} = $lhs;
-	$op_returns{$op->seq}->{name} = $lhs_v;
+	
+
+#	return if(!$lhs and $op->first->name eq 'const');
+	
+#
+
+	unless($target) {
+	    #the target is empty
+	    $op_returns{$op->seq}->{type} = $expr;
+	    $op_returns{$op->seq}->{name} = $expr_v;	    
+	    return;
+	}
+	
+#	print "$expr - $target\n";
+#	print "$target->isa($expr): ". $target->isa($expr) . "\n";
+#	print "$expr->isa($target): ". $expr->isa($target) . "\n";
+
+
+
+	if((!$target->isa($expr) and !$expr->isa($target)) or ($target->can('check') && !$target->check($expr))) {
+	    if($mod) {
+		die "Type mismatch, can't " . $op->name . 
+		    " $rhs ($rhs_v) to $lhs ($lhs_v) at " . 
+			$optimize::state->file . ":" . 
+			    $optimize::state->line . "\n";
+	    } else {
+		die "Type mismatch, can't assign result of $lhs $lhs_v " 
+		    . $op->name . " $rhs $rhs_v to $target ($target_v) at " 
+			. $optimize::state->file . ":" 
+			    . $optimize::state->line . "\n";
+	    }
+	}
+	$op_returns{$op->seq}->{type} = $target;
+	$op_returns{$op->seq}->{name} = $target_v;
     }
 
 }
 
+BEGIN { $optimize::loaded{"types"} = __PACKAGE__ }
+
 sub import {
     my ($package, $filename, $line) = caller;
-    optimize->register(\&entry, $package, $filename, $line);
+    #$^H |= 0x00020000; 
+    #$^H{"use_types"}++;
+    $^H |= 0x00000010;
+#    optimize->register(\&entry, $package, $filename, $line);
 }
 
 sub unimport {
     my ($package, $filename, $line) = caller;
+    $^H &= ~ 0x00000010;
+    #$^H |= 0x00020000; 
+    #delete($^H{"use_types"});
+#    optimize->unregister($package);
+}
 
-    optimize->unregister($package);
+sub get_type {
+    my($op, $cv) = @_;
+    my ($type, $value, $const) = ("","",0);
+    if($op->name eq 'padsv'
+       && exists($typed{$cv->ROOT->seq}->{$op->targ})) {
+	$type   = $typed{$cv->ROOT->seq}->{$op->targ}->{type};
+	$value  = $typed{$cv->ROOT->seq}->{$op->targ}->{name};
+    } elsif(exists($op_returns{$op->seq})) {
+	$type  = $op_returns{$op->seq}->{type};
+	$value = $op_returns{$op->seq}->{name};
+    } elsif($op->name eq 'const' && 
+	    exists($const_map{ref($op->sv)})) {
+	$type  = $const_map{ref($op->sv)};
+	$value = "constant '" . $op->sv->sv."'";
+	$const++;
+    } elsif($op->name eq 'null' &&
+	    $op->oldname eq 'list') {
+	get_list_proto($op,$cv);
+    } else {
+	$type = $value = "unknown";
+    }
+    return ($type, $value, $const);
+}
+
+sub get_list_proto {
+    my ($op, $cv) = @_;
+    my $o = $op->first->sibling();
+#    print "start\n";
+    my @type;
+    my @name;
+    while(ref($o) ne 'B::NULL') {
+	my $kid = $o;
+	if($o->name eq 'null') {
+	    $kid = $o->first;
+	}
+	if($kid->name eq 'padsv' &&
+	   exists($typed{$cv->ROOT->seq}->{$kid->targ})) {
+	    push @type, $typed{$cv->ROOT->seq}->{$kid->targ}->{type}; 
+	    push @name, $typed{$cv->ROOT->seq}->{$kid->targ}->{name};	
+	} elsif(exists($op_returns{$kid->seq})) {
+	    push @type, $op_returns{$kid->seq}->{type}; 
+	    push @name, $op_returns{$kid->seq}->{name};
+	} elsif($kid->name eq 'const' && 
+		exists($const_map{ref($kid->sv)})) {
+	    push @type, $const_map{ref($kid->sv)};
+	    push @name, $kid->sv->sv;
+	} else {
+	    push @type, "unknown";
+	    push @name, "unknown";
+	}
+#	    print $kid->name . "\n";
+	$o = $o->sibling;
+    }
+
+    if(@type > 1) {
+	$op_returns{$op->seq}->{type} = \@type;
+	$op_returns{$op->seq}->{name} = \@name;
+    } else {
+	$op_returns{$op->seq}->{type} = $type[0];
+	$op_returns{$op->seq}->{name} = $name[0];
+    }
+    use Data::Dumper;
+#    print Dumper(\@type);
+
 }
 
 package unknown;

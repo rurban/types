@@ -1,5 +1,11 @@
 Revision history for Perl extension types.
 
+0.03	
+	- Added support for return values.	
+	- Added lexical scoping support
+	- Added check for redefinition of subroutines
+	- Expressions get return values
+
 0.02 
 	- Added support for numbers and strings (James Duncan)
 	- Allow implicit casts of

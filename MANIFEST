@@ -7,3 +7,6 @@ README
 lib/types.pm
 t/1.t
 t/2.t
+t/3-return.t
+t/4-scope.t
+t/50-classes.t

@@ -12,6 +12,7 @@ my $build = Module::Build->new
      { 
 	 'optimize' => '0.02',
 	 'perl' => '5.8',
+	 'B::Generate' => '1.06',
      }
      );
 $build->create_build_script();

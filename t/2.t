@@ -5,23 +5,26 @@ use types;
 my int $int;
 my float $float;
 eval '$int = $float;';
-like($@, qr/Type mismatch, can't assign float \(\$float\) to int \(\$int\)/, "Check that we get type mismatch");
+like($@, qr/Type mismatch, can't sassign float \(\$float\) to int \(\$int\)/, "Check that we get type mismatch");
 package foo;
-eval '$int = $float;';
-use Test::More;
-is($@,"", "no type checking for package foo");
+{
+    no types;
+    eval '$int = $float;';
+    use Test::More;
+    is($@,"", "no type checking for this lexical scope");
+}
 package bar;
 eval '$int = $float;';
-is($@, 'Type mismatch, can\'t assign float ($float) to int ($int) at (eval 8):1'."\n", "Check that we get type mismatch");
+is($@, 'Type mismatch, can\'t sassign float ($float) to int ($int) at (eval 8):1'."\n", "Check that we get type mismatch");
 eval '$int = $float = $int;';
-is($@, "Type mismatch, can't assign float (\$float) to int (\$int) at (eval 10):1\n", "Workes nested aswell");
+is($@, "Type mismatch, can't sassign float (\$float) to int (\$int) at (eval 10):1\n", "Workes nested aswell");
 
 {
     my int $int = 1;
     eval '$int = 1.2';
-    like($@, qr/assign float \(constant '1.2'\) to int \(\$int\)/, "Can't assign float constant to integer" );
+    like($@, qr/sassign float \(constant '1.2'\) to int \(\$int\)/, "Can't sassign float constant to integer" );
     eval '$int = "hi"';
-    like($@, qr/assign string \(constant 'hi'\) to int \(\$int\)/, "Can't assign string to integer" );
+    like($@, qr/sassign string \(constant 'hi'\) to int \(\$int\)/, "Can't sassign string to integer" );
     my float $float = 2.3;
     eval '$float = 5';
     is($@, "", "Can assign integer constant to float");
