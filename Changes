@@ -1,6 +1,13 @@
 Revision history for Perl extension types.
 
-0.05   - Added compile argument type checking, cleaned up code
+0.05_01 2011-02-19 rurban
+       - renamed float to double
+       - added attributes
+       - support B::CC compiler optimizations. see L<B::CC/TYPES>, 
+         planned are CORE optimizations also (i_opt, ARRAY, readonly, ...)
+
+0.05   abergman
+       - Added compile argument type checking, cleaned up code
        - Added support for CORE::int returning type int
 
 0.03	

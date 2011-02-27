@@ -1,7 +1,8 @@
-types version 0.02
-==================
+types version 0.05_01
+=====================
 
 This module allows you to do strict typing for perl.
+It also permits compiler optimizations, for CORE (not yet) and B::CC.
 
 INSTALLATION
 
@@ -22,15 +23,13 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
- optimize.pm 0.02
+ optimize 0.02
+ B::Generate
 
 COPYRIGHT AND LICENCE
-
-Put the correct copyright and licence information here.
 
 Copyright (C) 2002 Arthur Bergman
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 
-
 

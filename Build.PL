@@ -11,7 +11,7 @@ my $build = Module::Build->new
      requires => 
      { 
 	 'optimize' => '0.02',
-	 'perl' => '5.8',
+	 'perl' => '5.008',
 	 'B::Generate' => '1.06',
      }
      );
