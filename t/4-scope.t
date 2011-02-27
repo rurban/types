@@ -5,7 +5,7 @@ use Test::More tests => 4;
 { 
     use types;
     eval 'my int $int = 1.5';
-    like($@, qr/can\'t sassign float \(constant \'1.5\'\) to int/, "use types is in effect");
+    like($@, qr/can\'t sassign double \(constant \'1.5\'\) to int/, "use types is in effect");
     { 
 	no types;
 	eval 'my int $int = 1.5';

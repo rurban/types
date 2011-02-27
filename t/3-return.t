@@ -35,7 +35,7 @@ sub test1 {
     return 1.5;
 }
 ';
-like($@, qr/Function main::test1 redefined with a different type \(was int now float\)/, "Different return type, illegal");
+like($@, qr/Function main::test1 redefined with a different type \(was int now double\)/, "Different return type, illegal");
 
 eval '
 sub test2 {
@@ -60,4 +60,4 @@ sub retfloat {
 }
 my int $int = retfloat();
 ';
-like($@, qr/mismatch, can\'t sassign float \(main::retfloat\(\)\) to int \(\$int\) at/, "Returns float, cannot assign to int!");
+like($@, qr/mismatch, can\'t sassign double \(main::retfloat\(\)\) to int \(\$int\) at/, "Returns double, cannot assign to int!");

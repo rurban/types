@@ -32,11 +32,12 @@ sub compare_type {
     return 0;
 }
 
-sub B::NULL::name { "void" }
+eval qq(sub B::NULL::name { "void" }) unless exists &B::NULL::name;
 #use Data::Dumper;
 sub check {
     my $class = shift;
     my $op = shift;
+    return unless $op;
     my $cv = $op->find_cv();
 
     #if($^H & HINT_TYPES) {
@@ -166,26 +167,27 @@ sub match_protos {
     }
 }
 
-    if(ref($op->next) ne 'B::NULL') {
-      #	print $op->name . " - " . $op->next->name . "\n";
+    if (0) {
+      if(ref($op->next) ne 'B::NULL') {
+        print $op->name . " -> " . $op->next->name . "\n";
+      }
+      if(ref($op->next) ne 'B::NULL' &&
+         ref($op->next->next) ne 'B::NULL' &&
+         $op->next->next->name eq 'entersub') {
+        print "sub entry\n";
+      }
     }
-    if(ref($op->next) ne 'B::NULL' &&
-       ref($op->next->next) ne 'B::NULL' &&
-       $op->next->next->name eq 'entersub') {
-      #	print "sub entry\n";
-    }
-
 
     if(ref($op) eq 'B::LISTOP' && $op->first->name eq 'pushmark') {
 	get_list_proto($op,$cv);
     }
 
-
+#print join(" ",ref($op->next), ref($cv->START), $op->next->name, $op->next->next->name),"\n";
     if(ref($op->next) ne 'B::NULL' &&
        ref($cv->START) ne 'B::NULL' &&
-       ($op->next->name eq 'lineseq' &&
-	$op->next->next->name =~/^leave/) ||
-       $op->next->name eq 'return') {
+       ($op->next->name eq 'lineseq' && $op->next->next->name =~/^leave/)
+       || $op->next->name eq 'return')
+    {
 	my ($type, $value, $const) = get_type($op, $cv);
 	my $lineseq = $op->next;
 	my $leave = $lineseq->next;
@@ -200,7 +202,6 @@ sub match_protos {
 				" at $function_returns{$cv->START->seq}->{file}\n";
 	}
 	
-	
 	my $subname = "";
 	
 	if(ref($cv->GV) ne 'B::SPECIAL' && $cv->GV->SAFENAME ne '__ANON__') {
@@ -210,7 +211,6 @@ sub match_protos {
 	   $function_returns{$subname}->{type} ne $type) {
 	    die "Function $subname redefined with a different type (was $function_returns{$subname}->{type} now $type) at " . $optimize::state->file . ":" . $optimize::state->line . "\n";
 	}
-
 	
 	$function_returns{$cv->START->seq}->{type} = $type;
 	$function_returns{$cv->START->seq}->{name} = $value;
@@ -483,6 +483,8 @@ sub check {
     return 1;
 }
 our $dummy = 1;
+*float = *double;
+
 package number;
 use base qw(double);
 sub check {

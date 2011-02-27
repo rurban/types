@@ -1,12 +1,16 @@
 use ExtUtils::MakeMaker;
-require 5.006;
+require 5.008;
 
 WriteMakefile
   (
    NAME	           => "types",
    VERSION_FROM    => "lib/types.pm",
    PREREQ_PM => {'B::Generate' => '1.34',
-                 'optimize'    => '0.02'},
+                 'optimize'    => '0.02',
+                 'Hook::Scope' => '0.04',
+                 'optimizer'   => '0.05',
+                 'B::Utils'    => '0',
+                },
    ($] >= 5.005 ?
     ('AUTHOR' => 'Artur Bergman <abergman@cpan.org>, Reini Urban <rurban@cpan.org>',
      'ABSTRACT' => 'type declaration and checking') : ()),
