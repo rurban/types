@@ -1,0 +1,707 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>use types YAPC::US 2011</title>
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+<meta name="generator" content="pod2s5 0.08" />
+<meta name="generator" content="S5" />
+<meta name="version" content="S5 1.1" />
+<meta name="presdate" content="Ashville Tue Jun 28, 2011" />
+<meta name="author" content="rurban" />
+<meta name="company" content="&nbsp;" />
+<!-- configuration parameters -->
+<meta name="defaultView" content="slideshow" />
+<meta name="controlVis" content="hidden" />
+<!-- style sheet links -->
+<link rel="stylesheet" href="ui/rurban/slides.css" type="text/css" media="projection" id="slideProj" />
+<link rel="stylesheet" href="ui/default/outline.css" type="text/css" media="screen" id="outlineStyle" />
+<link rel="stylesheet" href="ui/default/print.css" type="text/css" media="print" id="slidePrint" />
+<link rel="stylesheet" href="ui/default/opera.css" type="text/css" media="projection" id="operaFix" />
+
+<!-- embedded styles -->
+<style type="text/css" media="all">
+.imgcon {width: 525px; margin: 0 auto; padding: 0; text-align: center;}
+#anim {width: 270px; height: 320px; position: relative; margin-top: 0.5em;}
+#anim img {position: absolute; top: 42px; left: 24px;}
+img#me01 {top: 0; left: 0;}
+img#me02 {left: 23px;}
+img#me04 {top: 44px;}
+img#me05 {top: 43px;left: 36px;}
+</style>
+<!-- S5 JS -->
+<script src="ui/default/slides.js" type="text/javascript"></script>
+<!--
+   tom AT cpan.org:
+   this will not work, it's not contained
+   in the downloadable S5
+   <script src="/mint/?js" type="text/javascript"></script></head>
+-->
+<body>
+
+<div class="layout">
+
+<div id="controls"></div>
+<div id="currentSlide"></div>
+<div id="header"></div>
+<div id="footer">
+<h1>Reini Urban &#8226; Ashville Tue Jun 28, 2011</h1>
+<h2>use types YAPC::US 2011</h2></div>
+</div><div class="slide">
+<h1>use types;
+
+</h1><p>YAPC::US 2011
+
+</p><p><b>rurban</b> - Reini Urban <br>
+<code>vienna.pm</code>, <code>houston.pm</code>
+
+</p></div>
+<div class="slide">
+<h1>Outline
+
+</h1><ul><li level="1">Status Quo: CORE types
+
+<p><code>my TYPE $i; my My::Class $o;</code> <br>
+<code>Declaration only. package TYPE must exist</code>
+
+</p></li><li level="1">Artur Bergman's <b>types</b> module
+
+<p><code>Declare and check type safety. int, double, number, string. 
+params and return values.</code>
+
+</p></li><li level="1">Optimizations planned for 5.16
+
+<p><code>smaller and faster, ensured at compile-time. 
+typed arrays + hashes, perfect hashes, fast method calls,
+type declarations via class and attributes, fix types.</code>
+
+</p></li></ul></div>
+<div class="slide">
+<h1>Who am I
+
+</h1><p><b>rurban</b> active in p5p since 1995.
+
+</p><p>maintains <b>cygwin perl</b> since 5.8.8 
+and 3-4 modules: illguts, <b>B::*</b> => 5.10, 
+mainly the "compiler".
+
+</p><p>In the future a lot more time for the compiler and CORE.
+
+</p><p>I'm known as the BAD guy on p5p who started fighting with Nick.
+Sorry about that. Sometimes I'm just arrogant and stupid, but 
+unfortunately not as funny as Matt.
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System
+
+</h1><p>Yes, the language already has one.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$var</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;or&nbsp;our</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;my&nbsp;:attribs&nbsp;are&nbsp;not&nbsp;known&nbsp;at&nbsp;compile-time,&nbsp;only&nbsp;our.</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;$&nbsp;perl&nbsp;<font color="#ffa500">-c</font>w&nbsp;<font color="#ffa500">-e'</font><font color="#ff0000">package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;our&nbsp;int&nbsp;$i:const;</font><font color="#ffa500">'</font><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;Invalid&nbsp;<font color="#007f00">SCALAR</font>&nbsp;attribute:&nbsp;const&nbsp;at&nbsp;<font color="#ffa500">-e</font>&nbsp;line&nbsp;<font color="#00007f">1</font><BR>
+&nbsp;&nbsp;$&nbsp;perl&nbsp;<font color="#ffa500">-c</font>w&nbsp;<font color="#ffa500">-e'</font><font color="#ff0000">package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;my&nbsp;int&nbsp;$i:const;</font><font color="#ffa500">'</font><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<font color="#ffa500">-e</font>&nbsp;syntax&nbsp;OK<BR>
+<BR>
+&nbsp;&nbsp;<b>sub&nbsp;</b><font color="#007f00">name</font>&nbsp;(proto)&nbsp;{}&nbsp;=&gt;&nbsp;proto:&nbsp;&amp;name-&gt;pv<BR>
+<BR>
+</div>
+<div class="slide">
+<h1>Perl's Type System
+
+</h1><p>Yes, the language already has one. CORE:
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;TYPE&nbsp;<font color="#0000ff">$var</font>;<BR>
+&nbsp;&nbsp;<b>sub&nbsp;</b><font color="#007f00">name</font>&nbsp;(proto)&nbsp;{}&nbsp;=&gt;&nbsp;proto:&nbsp;&amp;name-&gt;pv<BR>
+<BR>
+<p>Only a few out-of-CORE implementations: <br>
+
+</p><p>Moose, fields, <strike>types, typesafety</strike>, Lexical::Types
+
+</p><p><b>Params</b>:  <code>Devel::Declare</code>, <code>Params::Validate</code>, <code>Params::Classify</code> <br>
+<b>Objects</b>: <code>Class::Meta</code>, <code>Moose</code>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System
+
+</h1><p>At first a look CORE types, not the language:
+
+</p><p><b>SCALAR</b> (non-strict, VB-like): IV, NV, UV, PV, ...
+
+</p><p><b>ARRAY</b> (non-strict): AV
+
+</p><p><b>HASH</b> (non-strict): HV
+
+</p><p><b>Objects</b> ("stashes", @ISA, declaration)
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>SCALAR</b> (non-strict, VB-like)
+
+</p><p>multiple types (IV,NV,PV) per variable, context dependent.
+
+</p><p>internally upgraded: IV => PVIV => PVNV
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>SCALAR</b> (non-strict, VB-like)
+
+</p><p>multiple types (IV,NV,PV) per variable, context dependent.
+
+</p><p>IV: integer
+
+</p><p><img src=pix/sviv-14.png height=204px width=278px>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>SCALAR</b> (non-strict, VB-like)
+
+</p><p>multiple types (IV,NV,PV) per variable, context dependent.
+
+</p><p>IV - integer unblessed, untied
+
+</p><p><img src=pix/sviv-14.png height=204px width=278px> => <img src=pix/sviv-new.png height=204px width=278px>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>SCALAR</b> (non-strict, VB-like)
+
+</p><p>multiple types (IV,NV,PV) per variable, context dependent.
+
+</p><p>internally upgraded: IV => NV
+
+</p><p><img src=pix/svnv-14.png height=252px width=288px>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>SCALAR</b> (non-strict, VB-like)
+
+</p><p>multiple types (IV,NV,PV) per variable, context dependent.
+
+</p><p>internally upgraded: IV => NV => PVNV
+
+</p><p><img src=pix/svpvnv-14.png  height=264px width=552px>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>SCALAR</b> (non-strict, VB-like)
+
+</p><p>internally upgraded: IV => PVIV => PVNV => "Objects" => Tie
+
+</p><p><img src=pix/svpvmg-14.png>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - SCALAR
+
+</h1><p><b>"STASH"</b> - Hierarchical symbol table,<br>
+used as package name for Objects. i.e. <i>"Class pointer"</i>
+
+</p><p><img src=pix/stash.png>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - ARRAY
+
+</h1><p><b>ARRAY</b> (non-strict)
+
+</p><p>Keys are integers, Values any SCALAR
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - ARRAY
+
+</h1><p><b>ARRAY</b> (non-strict)
+
+</p><p>Keys are integers, Values any SCALAR
+
+</p><font color="#0000ff">@a</font>&nbsp;=&nbsp;(<font color="#ffa500">"</font><font color="#ff0000">any</font><font color="#ffa500">"</font>,&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#00007f">2.5006</font>,&nbsp;\&amp;code,&nbsp;[<font color="#ffa500">'</font><font color="#ff0000">arrayref</font><font color="#ffa500">'</font>],&nbsp;{hashref=&gt;<font color="#00007f">1</font>});<BR>
+<BR>
+</div>
+<div class="slide">
+<h1>Perl's Type System - ARRAY
+
+</h1><p><b>ARRAY</b> (non-strict)
+
+</p><p>Keys are integers, Values any SCALAR - flexible, untyped, big
+
+</p><font color="#0000ff">@a</font>&nbsp;=&nbsp;(<font color="#ffa500">"</font><font color="#ff0000">any</font><font color="#ffa500">"</font>,&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#00007f">2.5006</font>,&nbsp;\&amp;code,&nbsp;[<font color="#ffa500">'</font><font color="#ff0000">arrayref</font><font color="#ffa500">'</font>],&nbsp;{hashref=&gt;<font color="#00007f">1</font>});<BR>
+<BR>
+<p><img src=pix/av-sv.png>
+
+</p></div>
+<div class="slide">
+<h1>Typed ARRAY
+
+</h1><p><b>Typed ARRAY</b>s (optional, faster, less space)
+
+</p><p>Keys are integers, Values of one type only (native)
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@a</font>;&nbsp;<font color="#0000ff">$#a</font>=<font color="#00007f">256</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;pre-allocate:&nbsp;256&nbsp;*&nbsp;sizeof(IV)</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@a</font>&nbsp;=&nbsp;(<font color="#00007f">1</font>);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;non-fixed&nbsp;size:&nbsp;3&nbsp;*&nbsp;sizeof(IV)</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@a</font>&nbsp;:const&nbsp;=&nbsp;(<font color="#00007f">1</font>);&nbsp;<font color="#7f7f7f"><i>#&nbsp;fixed&nbsp;size:&nbsp;1&nbsp;*&nbsp;sizeof(IV)</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+<p>Untyped:
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#0000ff">@a</font>;&nbsp;<font color="#0000ff">$#a</font>=<font color="#00007f">256</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;pre-allocate:&nbsp;256&nbsp;*&nbsp;sizeof(SV)</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+</div>
+<div class="slide">
+<h1>Typed ARRAY
+
+</h1>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@a</font>;<BR>
+<BR>
+<p><img src=pix/av-typed.png>
+
+</p><code>  AvTYPED && (IOK | NOK | POK) </code></div>
+<div class="slide">
+<h1>Typed ARRAY
+
+</h1><p><p>
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@a</font>;<BR>
+<BR>
+<p>Declaration already possible now!
+
+</p>&nbsp;&nbsp;<font color="#c9a7ff">perl</font>&nbsp;-we<font color="#ff0000">'package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;my&nbsp;int&nbsp;@a;'</font><BR>
+&nbsp;&nbsp;-e&nbsp;syntax&nbsp;ok<BR>
+<BR>
+<p><b>int</b> must be a package definition.
+
+</p><p><small>Note: <code>@a</code> is declared as <code>int</code>, but not blessed.</small>
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - HASH
+
+</h1><p><b>HASH</b> untyped: flexible, but big
+
+</p><p>Keys any SCALAR, Values any SCALAR
+
+</p>&nbsp;&nbsp;<font color="#0000ff">%h</font>&nbsp;=&nbsp;(<font color="#ffa500">'</font><font color="#ff0000">any</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;[<font color="#ffa500">"</font><font color="#ff0000">any</font><font color="#ffa500">"</font>,&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#00007f">2.5006</font>];<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#00007f">1</font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&gt;&nbsp;<font color="#00007f">1</font>,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#00007f">1.005</font>&nbsp;=&gt;&nbsp;<font color="#00007f">2.5</font>);<BR>
+<BR>
+<p>Internally: Keys are stringified.
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - HASH
+
+</h1><p><b>HASH</b> untyped: flexible<br>
+Keys any SCALAR, Values any SCALAR
+
+</p><p><img src=pix/hv-sv.png>
+
+</p></div>
+<div class="slide">
+<h1>Typed HASH
+
+</h1><p><b>HASH</b> typed: fast, small
+
+</p><p>Keys STRING only, Values typed
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;string&nbsp;<font color="#0000ff">%h</font>;&nbsp;<font color="#0000ff">$h</font>{<font color="#ffa500">'</font><font color="#ff0000">x</font><font color="#ffa500">'</font>}&nbsp;=&nbsp;<font color="#ffa500">'</font><font color="#ff0000">string</font><font color="#ffa500">'</font>;<BR>
+&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#0000ff">$h</font>{<font color="#ffa500">'</font><font color="#ff0000">x</font><font color="#ffa500">'</font>}&nbsp;=&nbsp;<font color="#00007f">1</font>;<BR>
+&nbsp;&nbsp;<b>my</b>&nbsp;double&nbsp;<font color="#0000ff">%h</font>;&nbsp;<font color="#0000ff">$h</font>{<font color="#ffa500">'</font><font color="#ff0000">x</font><font color="#ffa500">'</font>}&nbsp;=&nbsp;<font color="#00007f">1.0</font>;<BR>
+<BR>
+</div>
+<div class="slide">
+<h1>Typed HASH
+
+</h1><p><b>HASH</b> typed: directer access, small <br>
+Keys STRING only, Values typed
+
+</p><p><img src=pix/hv-typed.png>
+
+</p></div>
+<div class="slide">
+<h1>Typed HASH
+
+</h1><p><b>HASH</b> typed: fast, small
+
+</p><p>Keys STRING only, Values are typed.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>;&nbsp;<font color="#0000ff">$h</font>{<font color="#ffa500">'</font><font color="#ff0000">any</font><font color="#ffa500">'</font>}&nbsp;=&nbsp;<font color="#00007f">1</font>;<BR>
+&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;<font color="#0000ff">$h</font>{<font color="#00007f">2</font>}&nbsp;=&nbsp;<font color="#00007f">1</font>;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;=&gt;&nbsp;Wrong&nbsp;type:&nbsp;hash&nbsp;key&nbsp;<b>no</b>&nbsp;string<BR>
+&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;<font color="#0000ff">$h</font>{<font color="#ffa500">'</font><font color="#ff0000">2</font><font color="#ffa500">'</font>}&nbsp;=&nbsp;<font color="#ffa500">'</font><font color="#ff0000">1</font><font color="#ffa500">'</font>;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;=&gt;&nbsp;Wrong&nbsp;type:&nbsp;hash&nbsp;value&nbsp;<b>no</b>&nbsp;<font color="#007f00">int</font>&nbsp;<BR>
+<BR>
+</div>
+<div class="slide">
+<h1>Perfect HASH
+
+</h1><p>Perfect hashes - <i>guaranteed O(1) lookup, dynamic hash function generation</i>
+
+</p><ul><li level="1"><code>my %h :const;</code> => untyped perfect hash of unknown size<br>
+
+</li><li level="1"><code>my %h :perfect;</code> => writable perfect hash
+
+</li><li level="1"><code>study %h</code>; => optimize lookup function to perfect hash.
+
+</li></ul><p>study untyped hash => copies the old perl hash (HV) 
+to new perfect hash (PH).
+
+</p><p><code>:const</code> hashes are always <code>:perfect</code>
+
+</p></div>
+<div class="slide">
+<h1>Perfect HASH
+
+</h1><p>Perfect hash. Should be typed to optimize implementation.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const&nbsp;=&nbsp;(<font color="#ffa500">'</font><font color="#ff0000">my</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#ffa500">'</font><font color="#ff0000">your</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">2</font>);<BR>
+<BR>
+<p>No need to study with :const and init on declaration.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const&nbsp;=&nbsp;(<font color="#ffa500">'</font><font color="#ff0000">my</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#ffa500">'</font><font color="#ff0000">your</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">2</font>);<BR>
+&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;untyped:&nbsp;value&nbsp;=&nbsp;SV</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+</div>
+<div class="slide">
+<h1>Perfect HASH Idioms
+
+</h1><p>- Avoid copy from perl hash to perfect hash.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:perfect;<BR>
+&nbsp;&nbsp;<font color="#0000ff">$h</font>{<font color="#0000ff"><b>$_</b></font>}=<font color="#00007f">1</font>&nbsp;<b>for</b>&nbsp;<font color="#0000ff">@h</font>;<BR>
+&nbsp;&nbsp;<font color="#007f00">study</font>&nbsp;<font color="#0000ff">%h</font>;<BR>
+<BR>
+</div>
+<div class="slide">
+<h1>Perfect HASH Idioms
+
+</h1><p>- Declare size in advance.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:perfect;<BR>
+&nbsp;&nbsp;<font color="#007f00">length</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;=&nbsp;<font color="#007f00">length</font>&nbsp;<font color="#0000ff">@h</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;not&nbsp;legal&nbsp;yet,&nbsp;but&nbsp;should&nbsp;be</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;<font color="#0000ff">$h</font>{<font color="#0000ff"><b>$_</b></font>}=<font color="#00007f">1</font>&nbsp;<b>for</b>&nbsp;<font color="#0000ff">@h</font>;<BR>
+&nbsp;&nbsp;<font color="#007f00">study</font>&nbsp;<font color="#0000ff">%h</font>;<BR>
+<BR>
+</div>
+<div class="slide">
+<h1>Perfect HASH Idioms
+
+</h1><p>- :const hash with computed key => values, without study
+
+</p><p>Idea 1
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const;<BR>
+&nbsp;&nbsp;<font color="#007f00">length</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;=&nbsp;<font color="#007f00">length</font>&nbsp;<font color="#0000ff">@keys</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;not&nbsp;legal&nbsp;yet,&nbsp;but&nbsp;should&nbsp;be</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;<font color="#0000ff">$h</font>{<font color="#0000ff"><b>$_</b></font>}&nbsp;=&nbsp;<font color="#0000ff">$i</font>++&nbsp;<b>for</b>&nbsp;<font color="#0000ff">@keys</font>;<BR>
+<BR>
+<p>Init until length is filled
+
+</p></div>
+<div class="slide">
+<h1>Perfect HASH Idioms
+
+</h1><p>- :const hash with computed key => values, without study
+
+</p><p>Idea 2
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const&nbsp;=&nbsp;<font color="#007f00">map</font>&nbsp;{&nbsp;<font color="#0000ff">$h</font>{<font color="#0000ff"><b>$_</b></font>}&nbsp;=&gt;&nbsp;<font color="#0000ff">$i</font>++}&nbsp;&nbsp;<font color="#0000ff">@keys</font>;<BR>
+=&gt;<BR>
+&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const;<BR>
+&nbsp;&nbsp;{&nbsp;<font color="#0000ff">$h</font>{<font color="#0000ff"><b>$_</b></font>}&nbsp;=&nbsp;<font color="#0000ff">$i</font>++&nbsp;<b>for</b>&nbsp;<font color="#0000ff">@keys</font>;&nbsp;}<BR>
+<BR>
+<p>Initialization on next expression, usually a block.
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - OBJECTS
+
+</h1><p><b>OBJECTS</b>: typed, but dynamic
+
+</p><p>run-time changable, mostly no compile-time optimizations possible.
+
+</p><p>Features: STASH ("class hash"), @ISA (mro), DESTROY
+
+</p></div>
+<div class="slide">
+<h1>Perl's Type System - OBJECTS
+
+</h1><p><b>OBJECTS</b>: typed, but dynamic.
+
+</p><p>Class by STASH, Inheritance by @ISA (mro), magic DESTROY methods.
+
+</p><p>Four method calls possible:
+
+</p><ul><li level="1">Class->method()
+
+</li><li level="1">$object->method()
+
+</li><li level="1">Class->$method()
+
+</li><li level="1">$object->$method()
+
+</li></ul></div>
+<div class="slide">
+<h1>Compilation of a function
+
+</h1><font color="#007f00">Class::sub</font>(ARGS...)<BR>
+<BR>
+<code>  pushmark  <br>
+    ARGS...  <br>
+  gv => GV *Class::sub  <br>
+  entersub </code><p>Class->method()   <br>
+$object->method()   <br>
+Class->$method()   <br>
+$object->$method()
+
+</p></div>
+<div class="slide">
+<h1>Compilation of a static method call
+
+</h1><p>Class::sub()   <br>
+
+</p>Class-&gt;method(ARGS...)<BR>
+<BR>
+<code>  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  method_named => PV "method"  <br>
+  entersub </code><p>$object->method()   <br>
+Class->$method()   <br>
+$object->$method()
+
+</p></div>
+<div class="slide">
+<h1>Compilation of a method call
+
+</h1><font color="#0000ff">$object</font>-&gt;<font color="#0000ff">method</font>(ARGS...)<BR>
+<BR>
+<code>  pushmark  <br>
+  padsv => GV *object  <br>
+    ARGS...  <br>
+  method_named => PV "method"  <br>
+  entersub </code></div>
+<div class="slide">
+<h1>Compilation of a method call
+
+</h1>Class-&gt;<font color="#0000ff">$method</font>(ARGS...)<BR>
+<BR>
+<code>  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  method => GV *method  <br>
+  entersub </code></div>
+<div class="slide">
+<h1>Compilation of a method call
+
+</h1><font color="#0000ff">$object</font>-&gt;<font color="#0000ff">$method</font>(ARGS...)<BR>
+<BR>
+<code>  pushmark  <br>
+  padsv => GV *object  <br>
+    ARGS...  <br>
+  method => GV *method  <br>
+  entersub </code></div>
+<div class="slide">
+<h1>Optimization of a static method call
+
+</h1>Class-&gt;method()<BR>
+<BR>
+<code>  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  method_named => PV "method"  <br>
+  entersub <br>
+=> <br>
+  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  gv => GV *Class::method  <br>
+  entersub </code></div>
+<div class="slide">
+<h1>Optimization of a static method call
+
+</h1>Class-&gt;method(...)&nbsp;=&gt;&nbsp;&amp;<font color="#007f00">Class::method</font>(<font color="#ffa500">'</font><font color="#ff0000">Class</font><font color="#ffa500">'</font>,&nbsp;...)<BR>
+<BR>
+<b>if</b>&nbsp;<font color="#007f00">defined</font>&nbsp;&amp;<font color="#007f00">Class::method</font><BR>
+<BR>
+<p>or <code>package Class</code> <b>:locked</b>
+
+</p><p>i.e. not changed at run-time.
+
+</p><p>Note: <code>@Class::ISA</code> <b>:const</b> = <code>qw(bla);</code> does not help.
+
+</p></div>
+<div class="slide">
+<h1>Optimization of other method calls
+
+</h1><p><b>Dynamic</b> method calls are possible to optimize in a similar way, 
+if the object is <b>declared</b> - known class at compile-time.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<b>My</b>::Class&nbsp;<font color="#0000ff">$object</font>&nbsp;=&nbsp;<b>My</b>::Class-&gt;new;<BR>
+&nbsp;&nbsp;<font color="#0000ff">$object</font>-&gt;<font color="#0000ff">call</font>();<BR>
+<BR>
+<p>Inherited methods are optimizable if all classes in path to the 
+final class are <b>:locked</b>, resp. <b>immutable</b>.
+
+</p></div>
+<div class="slide">
+<h1>Summary so far
+
+</h1><p>All this is possible now, without changing the language.
+
+</p><p>Just optimized implementations are missing.
+
+</p><p>I heard that in July 2011 Moose methods of immutable classes are 
+going to be inlined, but what I saw so far it's not using 
+optree changes like these to speed it up.
+
+</p></div>
+<div class="slide">
+<h1>More optimizations
+
+</h1><p>More compile-time optimizations.
+
+</p><p><b>:const</b> for variables
+
+</p><p><b>:locked</b> for packages:  const <code>@ISA</code>, no run-time created methods.
+
+</p></div>
+<div class="slide">
+<h1>use types;
+
+</h1><p><b>types</b> is Artur Bergman's compile-time checking attempt from 2002, 
+after the <b>compiler</b>, <b>B::Generate</b> and <b>optimize</b>. 
+
+</p><p>And before <b>optimizer</b>, which uses <b>types</b> to improve the optree.
+
+</p></div>
+<div class="slide">
+<h1>use types;
+
+</h1><p><b>types</b> does compile-time type-checking only.
+
+</p><p>compile-time type-optimizations in <b>optimizer</b>.
+
+</p><p>Problem: <b>slower</b>, not faster.
+
+</p></div>
+<div class="slide">
+<h1>use types;
+
+</h1><p>The idea is to make programs with <code>use types;</code>
+
+</p><p><b>faster</b>, not slower.
+
+</p><p>And define basic scalar types from CORE
+
+</p><p><code>int</code>, <code>double</code> and <code>string</code>
+
+</p></div>
+<div class="slide">
+<h1>B::CC
+
+</h1><p>The same types and declarations are used in B::CC also 
+to optimize types even further.
+
+</p></div>
+<div class="slide">
+<h1>B::CC - optimizing perl compiler
+
+</h1><p>B::CC also needs a syntax to optionally declare simple types:
+
+</p><p><b>int</b> and <b>double</b> (strict)
+
+</p><p>So far it was done by magic variable name suffices: <code>$a_i</code>, <code>$n_d</code>;
+
+</p><p>faster, <b>much</b> faster
+
+</p></div>
+<div class="slide">
+<h1>B::CC - User Type declarations
+
+</h1><p>Strict types as class, and optional type hints as attributes.
+
+</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$foo</font>&nbsp;:const;<BR>
+<BR>
+<p>With <code>use types</code> you get <b>type-declarations</b>, <br>
+partial <b>type-safety</b>, and <br>
+<b>type optimizations</b> at compile-time.
+
+</p></div>
+<div class="slide">
+<h1>SUMMARY
+
+</h1>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;double&nbsp;<font color="#0000ff">$foo</font>&nbsp;=&nbsp;<font color="#ffa500">"</font><font color="#ff0000">string</font><font color="#ffa500">"</font>;&nbsp;<font color="#7f7f7f"><i>#compile-time&nbsp;error&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<b>sub&nbsp;</b><font color="#007f00">foo</font>&nbsp;(<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$foo</font>)&nbsp;{&nbsp;<b>my</b>&nbsp;(<font color="#0000ff">$foo</font>)&nbsp;=&nbsp;<font color="#0000ff">@_</font>&nbsp;};&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;foo(<font color="#ffa500">"</font><font color="#ff0000">hi</font><font color="#ffa500">"</font>);&nbsp;<font color="#7f7f7f"><i>#compile-time&nbsp;Type&nbsp;mismatch&nbsp;error&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$int</font>;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<b>sub&nbsp;</b><font color="#007f00">foo</font>&nbsp;{&nbsp;<b>my</b>&nbsp;double&nbsp;<font color="#0000ff">$foo</font>;&nbsp;<b>return</b>&nbsp;<font color="#0000ff">$foo</font>&nbsp;}&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<font color="#0000ff">$int</font>&nbsp;=&nbsp;<font color="#0000ff">$foo</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;compile-time&nbsp;Type&nbsp;mismatch&nbsp;error&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@array</font>&nbsp;=&nbsp;(0.<font color="#00007f">.10</font>);&nbsp;<font color="#7f7f7f"><i>#&nbsp;optimized&nbsp;internal&nbsp;representation&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<font color="#0000ff">$array</font>[<font color="#00007f">2</font>]&nbsp;=&nbsp;<font color="#00007f">2</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;no&nbsp;SV,&nbsp;just&nbsp;the&nbsp;raw&nbsp;int&nbsp;at&nbsp;slot&nbsp;2.&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+</div>
+<div class="slide">
+<h1>SUMMARY
+
+</h1>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@array</font>&nbsp;:const&nbsp;=&nbsp;(0.<font color="#00007f">.10</font>);&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;even&nbsp;more&nbsp;optimized&nbsp;internal&nbsp;representation&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<font color="#0000ff">$array</font>[<font color="#00007f">2</font>]&nbsp;=&nbsp;<font color="#00007f">2</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;int&nbsp;@array&nbsp;is&nbsp;readonly&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<font color="#0000ff">$array</font>[<font color="#00007f">2</font>]&nbsp;=&nbsp;<font color="#ffa500">'</font><font color="#ff0000">2</font><font color="#ffa500">'</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;compile-time&nbsp;const&nbsp;error&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;string&nbsp;<font color="#0000ff">%stash</font>&nbsp;:perfect&nbsp;=&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(foo&nbsp;=&gt;&nbsp;<font color="#ffa500">'</font><font color="#ff0000">str1</font><font color="#ffa500">'</font>,&nbsp;bar&nbsp;=&gt;&nbsp;<font color="#ffa500">'</font><font color="#ff0000">str2</font><font color="#ffa500">'</font>);&nbsp;<font color="#7f7f7f"><i>#&nbsp;perfect&nbsp;hash&nbsp;(stashes)</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;<font color="#7f7f7f"><i>#&nbsp;more&nbsp;init...&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<font color="#007f00">study</font>&nbsp;<font color="#0000ff">%stash</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;initialization&nbsp;finished&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<font color="#007f00">print</font>&nbsp;<font color="#0000ff">$stash</font>{foo};&nbsp;<font color="#7f7f7f"><i>#&nbsp;faster&nbsp;lookup&nbsp;O(1)&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<font color="#0000ff">$stash</font>{new}&nbsp;=&nbsp;<font color="#00007f">1</font>;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;compile-time&nbsp;Type&nbsp;mismatch&nbsp;error</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+</div>
+<div class="slide">
+<h1>SUMMARY
+
+</h1>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$i</font>&nbsp;:double;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;declares&nbsp;a&nbsp;IV&nbsp;with&nbsp;SVf_NOK.&nbsp;&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#0000ff">$i</font>:<font color="#007f00">int</font>:double;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;same&nbsp;but&nbsp;without&nbsp;type-check&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$i</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;declares&nbsp;an&nbsp;IV.&nbsp;&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#0000ff">$i</font>:<font color="#007f00">int</font>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;same&nbsp;but&nbsp;without&nbsp;type-check&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$i</font>&nbsp;:string;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;declares&nbsp;a&nbsp;PVIV.&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">@array</font>&nbsp;:unsigned&nbsp;=&nbsp;(0.<font color="#00007f">.4</font>);&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;Will&nbsp;be&nbsp;used&nbsp;as&nbsp;c&nbsp;var&nbsp;in&nbsp;faster&nbsp;arithmetic&nbsp;and&nbsp;cmp.&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;Will&nbsp;use&nbsp;no&nbsp;SV&nbsp;value&nbsp;slot,&nbsp;just&nbsp;the&nbsp;direct&nbsp;value.&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<b>my</b>&nbsp;string&nbsp;<font color="#0000ff">%hash</font>&nbsp;:const&nbsp;=&nbsp;(foo&nbsp;=&gt;&nbsp;<font color="#ffa500">'</font><font color="#ff0000">any</font><font color="#ffa500">'</font>,&nbsp;bar&nbsp;=&gt;&nbsp;<font color="#ffa500">'</font><font color="#ff0000">any</font><font color="#ffa500">'</font>);&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;declare&nbsp;string&nbsp;keys&nbsp;only&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;generate&nbsp;as&nbsp;read-only&nbsp;perfect&nbsp;hash.&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+</div>
+<div class="slide">
+<h1>Questions?
+
+
+
+</h1></div>
+<div class="slide">
+<h1>Questions?
+
+</h1><p><a href="http://blogs.perl.org/users/rurban/2011/02/use-types.html">http://blogs.perl.org/users/rurban/2011/02/use-types.html</a>
+
+</p></div></body></html>

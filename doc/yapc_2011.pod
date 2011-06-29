@@ -1,0 +1,704 @@
+=head1 use types;
+
+YAPC::US 2011
+
+B<rurban> - Reini Urban <br>
+C<vienna.pm>, C<houston.pm>
+
+=head1 Outline
+
+=over
+
+=item Status Quo: CORE types
+
+C<< my TYPE $i; my My::Class $o; >> <br>
+C<< Declaration only. package TYPE must exist >>
+
+=item Artur Bergman's B<types> module
+
+C<< Declare and check type safety. int, double, number, string. 
+params and return values. >>
+
+=item Optimizations planned for 5.16
+
+C<< smaller and faster, ensured at compile-time. 
+typed arrays + hashes, perfect hashes, fast method calls,
+type declarations via class and attributes, fix types. >>
+
+=back
+
+=head1 Who am I
+
+B<rurban> active in p5p since 1995.
+
+maintains B<cygwin perl> since 5.8.8 
+and 3-4 modules: illguts, B<B::*> => 5.10, 
+mainly the "compiler".
+
+In the future a lot more time for the compiler and CORE.
+
+I'm known as the BAD guy on p5p who started fighting with Nick.
+Sorry about that. Sometimes I'm just arrogant and stupid, but 
+unfortunately not as funny as Matt.
+
+=head1 Perl's Type System
+
+Yes, the language already has one.
+
+=begin perl
+
+  my int $var; # or our
+
+  # my :attribs are not known at compile-time, only our.
+  $ perl -cw -e'package int; package main; our int $i:const;'
+    Invalid SCALAR attribute: const at -e line 1
+  $ perl -cw -e'package int; package main; my int $i:const;'
+    -e syntax OK
+
+  sub name (proto) {} => proto: &name->pv
+
+=end perl
+
+=head1 Perl's Type System
+
+Yes, the language already has one. CORE:
+
+=begin perl
+
+  my TYPE $var;
+  sub name (proto) {} => proto: &name->pv
+
+=end perl
+
+Only a few out-of-CORE implementations: <br>
+
+Moose, fields, <strike>types, typesafety</strike>, Lexical::Types
+
+B<Params>:  C<Devel::Declare>, C<Params::Validate>, C<Params::Classify> <br>
+B<Objects>: C<Class::Meta>, C<Moose>
+
+=head1 Perl's Type System
+
+At first a look CORE types, not the language:
+
+B<SCALAR> (non-strict, VB-like): IV, NV, UV, PV, ...
+
+B<ARRAY> (non-strict): AV
+
+B<HASH> (non-strict): HV
+
+B<Objects> ("stashes", @ISA, declaration)
+
+=head1 Perl's Type System - SCALAR
+
+B<SCALAR> (non-strict, VB-like)
+
+multiple types (IV,NV,PV) per variable, context dependent.
+
+internally upgraded: IV => PVIV => PVNV
+
+=head1 Perl's Type System - SCALAR
+
+B<SCALAR> (non-strict, VB-like)
+
+multiple types (IV,NV,PV) per variable, context dependent.
+
+IV: integer
+
+<img src=pix/sviv-14.png height=204px width=278px>
+
+=head1 Perl's Type System - SCALAR
+
+B<SCALAR> (non-strict, VB-like)
+
+multiple types (IV,NV,PV) per variable, context dependent.
+
+IV - integer unblessed, untied
+
+<img src=pix/sviv-14.png height=204px width=278px> => <img src=pix/sviv-new.png height=204px width=278px>
+
+=head1 Perl's Type System - SCALAR
+
+B<SCALAR> (non-strict, VB-like)
+
+multiple types (IV,NV,PV) per variable, context dependent.
+
+internally upgraded: IV => NV
+
+<img src=pix/svnv-14.png height=252px width=288px>
+
+=head1 Perl's Type System - SCALAR
+
+B<SCALAR> (non-strict, VB-like)
+
+multiple types (IV,NV,PV) per variable, context dependent.
+
+internally upgraded: IV => NV => PVNV
+
+<img src=pix/svpvnv-14.png  height=264px width=552px>
+
+=head1 Perl's Type System - SCALAR
+
+B<SCALAR> (non-strict, VB-like)
+
+internally upgraded: IV => PVIV => PVNV => "Objects" => Tie
+
+<img src=pix/svpvmg-14.png>
+
+=head1 Perl's Type System - SCALAR
+
+B<"STASH"> - Hierarchical symbol table,<br>
+used as package name for Objects. i.e. I<"Class pointer">
+
+<img src=pix/stash.png>
+
+=head1 Perl's Type System - ARRAY
+
+B<ARRAY> (non-strict)
+
+Keys are integers, Values any SCALAR
+
+=head1 Perl's Type System - ARRAY
+
+B<ARRAY> (non-strict)
+
+Keys are integers, Values any SCALAR
+
+=begin perl
+
+@a = ("any", 1, 2.5006, \&code, ['arrayref'], {hashref=>1});
+
+=end perl
+
+=head1 Perl's Type System - ARRAY
+
+B<ARRAY> (non-strict)
+
+Keys are integers, Values any SCALAR - flexible, untyped, big
+
+=begin perl
+
+@a = ("any", 1, 2.5006, \&code, ['arrayref'], {hashref=>1});
+
+=end perl
+
+<img src=pix/av-sv.png>
+
+=head1 Typed ARRAY
+
+B<Typed ARRAY>s (optional, faster, less space)
+
+Keys are integers, Values of one type only (native)
+
+=begin perl
+
+  my int @a; $#a=256;     # pre-allocate: 256 * sizeof(IV)
+  my int @a = (1);           # non-fixed size: 3 * sizeof(IV)
+  my int @a :const = (1); # fixed size: 1 * sizeof(IV)
+
+=end perl
+
+Untyped:
+
+=begin perl
+
+  my @a; $#a=256;         # pre-allocate: 256 * sizeof(SV)
+
+=end perl
+
+=head1 Typed ARRAY
+
+=begin perl
+
+  my int @a;
+
+=end perl
+
+<img src=pix/av-typed.png>
+
+  AvTYPED && (IOK | NOK | POK)
+
+=head1 Typed ARRAY
+
+<p>
+
+=begin perl
+
+  my int @a;
+
+=end perl
+
+Declaration already possible now!
+
+=begin bash
+
+  perl -we'package int; package main; my int @a;'
+  -e syntax ok
+
+=end bash
+
+B<int> must be a package definition.
+
+<small>Note: C<@a> is declared as C<int>, but not blessed.</small>
+
+=head1 Perl's Type System - HASH
+
+B<HASH> untyped: flexible, but big
+
+Keys any SCALAR, Values any SCALAR
+
+=begin perl
+
+  %h = ('any' => ["any", 1, 2.5006];
+        1     => 1,
+        1.005 => 2.5);
+
+=end perl
+
+Internally: Keys are stringified.
+
+=head1 Perl's Type System - HASH
+
+B<HASH> untyped: flexible<br>
+Keys any SCALAR, Values any SCALAR
+
+<img src=pix/hv-sv.png>
+
+=head1 Typed HASH
+
+B<HASH> typed: fast, small
+
+Keys STRING only, Values typed
+
+=begin perl
+
+  my string %h; $h{'x'} = 'string';
+  my int %h;    $h{'x'} = 1;
+  my double %h; $h{'x'} = 1.0;
+
+=end perl
+
+=head1 Typed HASH
+
+B<HASH> typed: directer access, small <br>
+Keys STRING only, Values typed
+
+<img src=pix/hv-typed.png>
+
+=head1 Typed HASH
+
+B<HASH> typed: fast, small
+
+Keys STRING only, Values are typed.
+
+=begin perl
+
+  my int %h; $h{'any'} = 1;
+  
+  $h{2} = 1;
+    => Wrong type: hash key no string
+  
+  $h{'2'} = '1';
+    => Wrong type: hash value no int 
+
+=end perl
+
+=head1 Perfect HASH
+
+Perfect hashes - I<guaranteed O(1) lookup, dynamic hash function generation>
+
+=over
+
+=item C<my %h :const;> => untyped perfect hash of unknown size<br>
+
+=item C<my %h :perfect;> => writable perfect hash
+
+=item C<study %h>; => optimize lookup function to perfect hash.
+
+=back
+
+study untyped hash => copies the old perl hash (HV) 
+to new perfect hash (PH).
+
+C<:const> hashes are always C<:perfect>
+
+=head1 Perfect HASH
+
+Perfect hash. Should be typed to optimize implementation.
+
+=begin perl
+
+  my int %h :const = ('my' => 1, 'your' => 2);
+
+=end perl
+
+No need to study with :const and init on declaration.
+
+=begin perl
+
+  my %h :const = ('my' => 1, 'your' => 2);
+  # untyped: value = SV
+
+=end perl
+
+=head1 Perfect HASH Idioms
+
+- Avoid copy from perl hash to perfect hash.
+
+=begin perl
+
+  my int %h :perfect;
+  $h{$_}=1 for @h;
+  study %h;
+
+=end perl
+
+=head1 Perfect HASH Idioms
+
+- Declare size in advance.
+
+=begin perl
+
+  my int %h :perfect;
+  length %h = length @h;         # not legal yet, but should be
+  $h{$_}=1 for @h;
+  study %h;
+
+=end perl
+
+=head1 Perfect HASH Idioms
+
+- :const hash with computed key => values, without study
+
+Idea 1
+
+=begin perl
+
+  my int %h :const;
+  length %h = length @keys;       # not legal yet, but should be
+  $h{$_} = $i++ for @keys;
+
+=end perl
+
+Init until length is filled
+
+=head1 Perfect HASH Idioms
+
+- :const hash with computed key => values, without study
+
+Idea 2
+
+=begin perl
+
+  my int %h :const = map { $h{$_} => $i++}  @keys;
+=>
+  my int %h :const;
+  { $h{$_} = $i++ for @keys; }
+
+=end perl
+
+Initialization on next expression, usually a block.
+
+=head1 Perl's Type System - OBJECTS
+
+B<OBJECTS>: typed, but dynamic
+
+run-time changable, mostly no compile-time optimizations possible.
+
+Features: STASH ("class hash"), @ISA (mro), DESTROY
+
+=head1 Perl's Type System - OBJECTS
+
+B<OBJECTS>: typed, but dynamic.
+
+Class by STASH, Inheritance by @ISA (mro), magic DESTROY methods.
+
+Four method calls possible:
+
+=over 
+
+=item Class->method()
+
+=item $object->method()
+
+=item Class->$method()
+
+=item $object->$method()
+
+=back
+
+=head1 Compilation of a function
+
+=begin perl
+
+Class::sub(ARGS...)
+
+=end perl
+
+  pushmark  <br>
+    ARGS...  <br>
+  gv => GV *Class::sub  <br>
+  entersub
+
+Class->method()   <br>
+$object->method()   <br>
+Class->$method()   <br>
+$object->$method()
+
+=head1 Compilation of a static method call
+
+Class::sub()   <br>
+
+=begin perl
+
+Class->method(ARGS...)
+
+=end perl
+
+  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  method_named => PV "method"  <br>
+  entersub
+
+$object->method()   <br>
+Class->$method()   <br>
+$object->$method()
+
+=head1 Compilation of a method call
+
+=begin perl
+
+$object->method(ARGS...)
+
+=end perl
+
+  pushmark  <br>
+  padsv => GV *object  <br>
+    ARGS...  <br>
+  method_named => PV "method"  <br>
+  entersub
+
+=head1 Compilation of a method call
+
+=begin perl
+
+Class->$method(ARGS...)
+
+=end perl
+
+  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  method => GV *method  <br>
+  entersub
+
+=head1 Compilation of a method call
+
+=begin perl
+
+$object->$method(ARGS...)
+
+=end perl
+
+  pushmark  <br>
+  padsv => GV *object  <br>
+    ARGS...  <br>
+  method => GV *method  <br>
+  entersub
+
+=head1 Optimization of a static method call
+
+=begin perl
+
+Class->method()
+
+=end perl
+
+  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  method_named => PV "method"  <br>
+  entersub <br>
+=> <br>
+  pushmark  <br>
+  const => PV "Class"  <br>
+    ARGS...  <br>
+  gv => GV *Class::method  <br>
+  entersub
+
+=head1 Optimization of a static method call
+
+=begin perl
+
+Class->method(...) => &Class::method('Class', ...)
+
+if defined &Class::method
+
+=end perl
+
+or C<package Class> B<:locked> or in Moose immutable.
+
+i.e. not changed at run-time.
+
+Note: C<@Class::ISA> B<:const> = C<qw(bla);> does not help.
+
+=head1 Optimization of other method calls
+
+B<Dynamic> method calls are possible to optimize in a similar way, 
+if the object is B<declared> - known class at compile-time.
+
+=begin perl
+
+  my My::Class $object = My::Class->new;
+  $object->call();
+
+=end perl  
+
+Inherited methods are optimizable if all classes in path to the 
+final class are B<:locked>, resp. B<immutable>.
+
+=head1 Summary so far
+
+All this is possible now, without changing the language.
+
+Just optimized implementations are missing.
+
+I heard that in July 2011 Moose methods of immutable classes are 
+going to be inlined, but what I saw so far it's not using 
+optree changes like these to speed it up.
+
+=head1 More optimizations
+
+More compile-time optimizations.
+
+B<:const> for variables
+
+B<:locked> for packages:  const C<@ISA>, no run-time created methods.
+
+=head1 use types;
+
+B<types> is Artur Bergman's compile-time checking attempt from 2002, 
+after the B<compiler>, B<B::Generate> and B<optimize>. 
+
+And before B<optimizer>, which uses B<types> to improve the optree.
+
+=head1 use types;
+
+B<types> does compile-time type-checking only.
+
+compile-time type-optimizations in B<optimizer>.
+
+Problem: B<slower>, not faster.
+
+=head1 use types;
+
+The idea is to make programs with C<use types;>
+
+B<faster>, not slower.
+
+And define basic scalar types from CORE
+
+C<< int >>, C<< double >> and C<< string >>
+
+=head1 B::CC
+
+The same types and declarations are used in B::CC also 
+to optimize types even further.
+
+=head1 B::CC - optimizing perl compiler
+
+B::CC also needs a syntax to optionally declare simple types:
+
+B<int> and B<double> (strict)
+
+So far it was done by magic variable name suffices: C<$a_i>, C<$n_d>;
+
+faster, B<much> faster
+
+=head1 B::CC - User Type declarations
+
+Strict types as class, and optional type hints as attributes.
+
+=begin perl
+
+  my int $foo :const;
+
+=end perl
+
+With C<use types> you get B<type-declarations>, <br>
+partial B<type-safety>, and <br>
+B<type optimizations> at compile-time.
+
+=head1 SUMMARY
+
+=begin perl
+
+    my double $foo = "string"; #compile-time error 
+    sub foo (int $foo) { my ($foo) = @_ }; 
+    foo("hi"); #compile-time Type mismatch error 
+ 
+    my int $int; 
+    sub foo { my double $foo; return $foo } 
+    $int = $foo; # compile-time Type mismatch error 
+
+    my int @array = (0..10); # optimized internal representation 
+    $array[2] = 2;       # no SV, just the raw int at slot 2. 
+
+=end perl
+
+=head1 SUMMARY
+
+=begin perl
+
+    my int @array :const = (0..10); 
+      # even more optimized internal representation 
+    $array[2] = 2; # int @array is readonly 
+    $array[2] = '2'; # compile-time const error 
+
+    my string %stash :perfect =  
+      (foo => 'str1', bar => 'str2'); # perfect hash (stashes)
+    ; # more init... 
+    study %stash; # initialization finished 
+
+    print $stash{foo}; # faster lookup O(1) 
+    $stash{new} = 1;   # compile-time Type mismatch error
+
+=end perl
+
+=head1 SUMMARY
+
+=begin perl
+
+    my int $i :double;  # declares a IV with SVf_NOK.  
+    my $i:int:double;   # same but without type-check 
+    my int $i;          # declares an IV.  
+    my $i:int;          # same but without type-check 
+
+    my int $i :string;  # declares a PVIV. 
+    my int @array :unsigned = (0..4);  
+        # Will be used as c var in faster arithmetic and cmp. 
+        # Will use no SV value slot, just the direct value. 
+ 
+    my string %hash :const = (foo => 'any', bar => 'any');  
+        # declare string keys only 
+        # generate as read-only perfect hash. 
+
+=end perl
+
+=head1 Questions?
+
+
+
+=head1 Questions?
+
+L<http://blogs.perl.org/users/rurban/2011/02/use-types.html>
+
+=cut
+
+rurban - Vienna, Houston, 2011-06-17
+
+__END__
+Local Variables:
+  fill-column:65
+End:

@@ -6,7 +6,7 @@ use warnings;
 use optimize;
 
 our $VERSION;
-$VERSION = "0.05_01";
+$VERSION = "0.05_02";
 # do { my @r = (q$Revision: 1.5 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 my %typed;
