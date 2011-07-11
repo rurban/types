@@ -539,7 +539,7 @@ $object->$method()
 <BR>
 <b>if</b>&nbsp;<font color="#007f00">defined</font>&nbsp;&amp;<font color="#007f00">Class::method</font><BR>
 <BR>
-<p>or <code>package Class</code> <b>:locked</b>
+<p>or <code>package Class</code> <b>:locked</b> or in Moose immutable.
 
 </p><p>i.e. not changed at run-time.
 
@@ -553,6 +553,10 @@ $object->$method()
 if the object is <b>declared</b> - known class at compile-time.
 
 </p>&nbsp;&nbsp;<b>my</b>&nbsp;<b>My</b>::Class&nbsp;<font color="#0000ff">$object</font>&nbsp;=&nbsp;<b>My</b>::Class-&gt;new;<BR>
+&nbsp;&nbsp;<font color="#0000ff">$object</font>-&gt;<font color="#0000ff">call</font>();<BR>
+<BR>
+&nbsp;&nbsp;<b>my</b>&nbsp;<b>My</b>::Class&nbsp;<font color="#0000ff">$object</font>&nbsp;=&nbsp;<b>My</b>::ParentClass-&gt;new;<BR>
+&nbsp;&nbsp;<font color="#007f00">bless</font>&nbsp;<font color="#0000ff">$object</font>,&nbsp;<font color="#ffa500">'</font><font color="#ff0000">My::Class</font><font color="#ffa500">'</font>;<BR>
 &nbsp;&nbsp;<font color="#0000ff">$object</font>-&gt;<font color="#0000ff">call</font>();<BR>
 <BR>
 <p>Inherited methods are optimizable if all classes in path to the 

@@ -553,6 +553,10 @@ if the object is B<declared> - known class at compile-time.
   my My::Class $object = My::Class->new;
   $object->call();
 
+  my My::Class $object = My::ParentClass->new;
+  bless $object, 'My::Class';
+  $object->call();
+
 =end perl  
 
 Inherited methods are optimizable if all classes in path to the 

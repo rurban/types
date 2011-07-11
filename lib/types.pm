@@ -6,7 +6,7 @@ use warnings;
 use optimize;
 
 our $VERSION;
-$VERSION = "0.05_02";
+$VERSION = "0.05_03";
 # do { my @r = (q$Revision: 1.5 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 my %typed;
@@ -26,7 +26,7 @@ our %const_map = (
 
 sub compare_type {
     my($a,$b) = @_;
-    if($a eq $b) {
+    if ($a eq $b) {
 	return 1;
     }
     return 0;
@@ -40,38 +40,38 @@ sub check {
     return unless $op;
     my $cv = $op->find_cv();
 
-    #if($^H & HINT_TYPES) {
-    unless($optimize::state->private & HINT_TYPES) {
-	return;
+    #if ($^H & HINT_TYPES) {
+    unless ($optimize::state->private & HINT_TYPES) {
+      return;
     }
 
-#    if($op->name eq 'padsv') {
+#    if ($op->name eq 'padsv') {
 #	print $op->flags ."\n";
 #    }
 
-    if(ref($op) eq 'B::PADOP' && $op->name eq 'gv') {
+    if (ref($op) eq 'B::PADOP' && $op->name eq 'gv') {
 #	$op->dump;
 	my $target = (($cv->PADLIST->ARRAY)[1]->ARRAY)[$op->padix];
 #	$target->dump;
 #	exit;
     }
 
-    if($op->name eq 'int') {
+    if ($op->name eq 'int') {
 	$op_returns{$op->seq}->{type} = 'int';
 	$op_returns{$op->seq}->{name} = 'int()';
     }
 
-    if($op->name eq 'padsv') {
+    if ($op->name eq 'padsv') {
 	my $target = (($cv->PADLIST->ARRAY)[0]->ARRAY)[$op->targ];
-	if(UNIVERSAL::isa($target,'B::SV') && $target->FLAGS & SVpad_TYPED) {
+	if (UNIVERSAL::isa($target,'B::SV') && $target->FLAGS & SVpad_TYPED) {
 	    $typed{$cv->ROOT->seq}->{$op->targ}->{type} = $target->SvSTASH->NAME;
 	    $typed{$cv->ROOT->seq}->{$op->targ}->{name} = $target->PV;
-	} elsif(UNIVERSAL::isa($target,'B::SV') &&
+	} elsif (UNIVERSAL::isa($target,'B::SV') &&
 		exists($typed{$cv->ROOT->seq}->{$target->PV})) {
 	    $typed{$cv->ROOT->seq}->{$op->targ} = $typed{$cv->ROOT->seq}->{$target->PV};
 	}
     }
-    if($cv->FLAGS & SVf_POK && !$function_params{$cv->START->seq}) {
+    if ($cv->FLAGS & SVf_POK && !$function_params{$cv->START->seq}) {
 	#we have, we have, we have arguments
 	my @type;
 	my @name;
@@ -80,7 +80,7 @@ sub check {
 	    my ($type, $sigil, $name) = split /\b/, $_;
             #    print "$type - $sigil - $name \n";	
 	    push @type, $type;
-	    if($sigil && $name)  {
+	    if ($sigil && $name)  {
 		push @name, $sigil.$name;
 		$typed{$cv->ROOT->seq}->{"$sigil$name"}->{type} = $type;
 		$typed{$cv->ROOT->seq}->{"$sigil$name"}->{name} = $sigil.$name;
@@ -98,33 +98,33 @@ sub check {
 
     }
 
-    if(ref($op->next) ne 'B::NULL' &&
+    if (ref($op->next) ne 'B::NULL' &&
        ($op->next->name =~/2cv$/ ||
 	($op->next->name eq 'null' && $op->next->oldname =~/2cv$/))) {
 	my $entersub = $op->next;
 	my $i = 1;
 
-	while($entersub->name ne 'entersub' &&
+	while ($entersub->name ne 'entersub' &&
 	      ref($entersub->next) ne 'B::NULL') {
-	    $i++ if($entersub->name ne 'null');
+	    $i++ if ($entersub->name ne 'null');
 	    $entersub = $entersub->next;
 
 	}
-	if($entersub->name eq 'entersub') {
+	if ($entersub->name eq 'entersub') {
 	    my $sv;
-	    if(ref($op) eq 'B::PADOP') {
+	    if (ref($op) eq 'B::PADOP') {
 		$sv = (($cv->PADLIST->ARRAY)[1]->ARRAY)[$op->padix];
 	    } else {
 		die;
 	    }
-	    if(ref($sv->CV) ne 'B::SPECIAL') {
+	    if (ref($sv->CV) ne 'B::SPECIAL') {
 		my $foo = $sv->CV->START->seq;
-		if(exists($function_returns{$foo})) {
+		if (exists($function_returns{$foo})) {
 		    $op_returns{$op->seq + $i}->{type} = $function_returns{$foo}->{type};
 		    $op_returns{$op->seq + $i}->{name} = $sv->STASH->NAME . "::" . $sv->SAFENAME."()";
                     # print "AND IT HAS A RETURN VALUE $i\n";
 		}
-		if(exists($function_params{$foo})) {
+		if (exists($function_params{$foo})) {
 		    my $param_list = $entersub->first();
 		    get_list_proto($param_list, $cv);
 		    $param_list = delete($op_returns{$param_list->seq});
@@ -144,7 +144,7 @@ sub match_protos {
     my $targets = scalar @{$target->{name}} - 1;
     my $sources = scalar @{$source->{name}} - 1;
 
-    if($sources < $targets) {
+    if ($sources < $targets) {
 	die "Not enough items in list at " .
 	    $optimize::state->file . ":" .
 		$optimize::state->line . "\n";
@@ -154,7 +154,7 @@ sub match_protos {
 	    ($target->{name}->[$i], $target->{type}->[$i]);
 	my ($source_name, $source_type) =
 	    ($source->{name}->[$i], $source->{type}->[$i]);
-	if((!$target_type->isa($source_type) and !$source_type->isa($target_type))
+	if ((!$target_type->isa($source_type) and !$source_type->isa($target_type))
            or ($target_type->can('check') && !$target_type->check($source_type))) 
         {
 	    die "Type mismatch in list for" .
@@ -168,22 +168,22 @@ sub match_protos {
 }
 
     if (0) {
-      if(ref($op->next) ne 'B::NULL') {
+      if (ref($op->next) ne 'B::NULL') {
         print $op->name . " -> " . $op->next->name . "\n";
       }
-      if(ref($op->next) ne 'B::NULL' &&
+      if (ref($op->next) ne 'B::NULL' &&
          ref($op->next->next) ne 'B::NULL' &&
          $op->next->next->name eq 'entersub') {
         print "sub entry\n";
       }
     }
 
-    if(ref($op) eq 'B::LISTOP' && $op->first->name eq 'pushmark') {
+    if (ref($op) eq 'B::LISTOP' && $op->first->name eq 'pushmark') {
 	get_list_proto($op,$cv);
     }
 
 #print join(" ",ref($op->next), ref($cv->START), $op->next->name, $op->next->next->name),"\n";
-    if(ref($op->next) ne 'B::NULL' &&
+    if (ref($op->next) ne 'B::NULL' &&
        ref($cv->START) ne 'B::NULL' &&
        ($op->next->name eq 'lineseq' && $op->next->next->name =~/^leave/)
        || $op->next->name eq 'return')
@@ -192,7 +192,7 @@ sub match_protos {
 	my $lineseq = $op->next;
 	my $leave = $lineseq->next;
 
-      	if(exists($function_returns{$cv->START->seq}) &&
+      	if (exists($function_returns{$cv->START->seq}) &&
 	   $function_returns{$cv->START->seq}->{type} ne $type) {
 	    die "Return type mismatch: " . $op->name .
 		" $type at " .
@@ -204,10 +204,10 @@ sub match_protos {
 	
 	my $subname = "";
 	
-	if(ref($cv->GV) ne 'B::SPECIAL' && $cv->GV->SAFENAME ne '__ANON__') {
+	if (ref($cv->GV) ne 'B::SPECIAL' && $cv->GV->SAFENAME ne '__ANON__') {
 	    $subname = $cv->GV->STASH->NAME . "::" . $cv->GV->SAFENAME;
 	}
-	if($subname && exists($function_returns{$subname}) &&
+	if ($subname && exists($function_returns{$subname}) &&
 	   $function_returns{$subname}->{type} ne $type) {
 	    die "Function $subname redefined with a different type (was $function_returns{$subname}->{type} now $type) at " . $optimize::state->file . ":" . $optimize::state->line . "\n";
 	}
@@ -216,101 +216,94 @@ sub match_protos {
 	$function_returns{$cv->START->seq}->{name} = $value;
 	$function_returns{$cv->START->seq}->{file} = $optimize::state->file . ":" . $optimize::state->line;
 
-	if($subname) {
+	if ($subname) {
 	    $function_returns{$subname} = $function_returns{$cv->START->seq};
             # print "GOT subname $subname\n";
 	}
         # print "scope leave retval ($type, $value): " . $op->name . "-" . $lineseq->next->name . "\n";
-
     }
 
-
-    if(ref($op) eq 'B::BINOP') {
+    if (ref($op) eq 'B::BINOP') {
 	
 	my ($lhs, $rhs, $target, $expr, $const, $mod);
 	my ($lhs_v, $rhs_v, $target_v, $expr_v);
-	
 
-	if($op->private & OPpTARGET_MY &&
+	if ($op->private & OPpTARGET_MY &&
 	   exists($typed{$cv->ROOT->seq}->{$op->targ})) {
 		$target   = $typed{$cv->ROOT->seq}->{$op->targ}->{type};
 		$target_v = $typed{$cv->ROOT->seq}->{$op->targ}->{name};
 	}
 
-	if($op->first->name eq 'padsv'
+	if ($op->first->name eq 'padsv'
 	   && exists($typed{$cv->ROOT->seq}->{$op->first->targ})) {
 	    $rhs    = $typed{$cv->ROOT->seq}->{$op->first->targ}->{type};
 	    $rhs_v  = $typed{$cv->ROOT->seq}->{$op->first->targ}->{name};
-	} elsif(exists($op_returns{$op->first->seq})) {
+	} elsif (exists($op_returns{$op->first->seq})) {
 	    $rhs = $op_returns{$op->first->seq}->{type};
 	    $rhs_v = $op_returns{$op->first->seq}->{name};
-	} elsif($op->first->name eq 'const' &&
+	} elsif ($op->first->name eq 'const' &&
 		exists($const_map{ref($op->first->sv)})) {
 	    $rhs = $const_map{ref($op->first->sv)};
 	    $rhs_v = "constant '" . $op->first->sv->sv."'";
 	    $const++;
-	} elsif($op->first->name eq 'null' &&
+	} elsif ($op->first->name eq 'null' &&
 		$op->first->oldname eq 'list') {
 	    get_list_proto($op->first,$cv);
 	}
 
-	if($op->last->name eq 'padsv'
+	if ($op->last->name eq 'padsv'
 	   && exists($typed{$cv->ROOT->seq}->{$op->last->targ})) {
 	    $lhs    = $typed{$cv->ROOT->seq}->{$op->last->targ}->{type};
 	    $lhs_v  = $typed{$cv->ROOT->seq}->{$op->last->targ}->{name};
-	    if($op->last->flags & OPf_MOD) {
-		die "target should be empty" if($target);
+	    if ($op->last->flags & OPf_MOD) {
+		die "target should be empty" if ($target);
 		$target = $lhs;
 		$target_v = $lhs_v;
 		$mod++;
 	    }
-	} elsif(exists($op_returns{$op->last->seq})) {
+	} elsif (exists($op_returns{$op->last->seq})) {
 	    $lhs = $op_returns{$op->last->seq}->{type};
 	    $lhs_v = $op_returns{$op->last->seq}->{name};
-	} elsif($op->last->name eq 'const' &&
+	} elsif ($op->last->name eq 'const' &&
 		exists($const_map{ref($op->last->sv)})) {
 	    $lhs = $const_map{ref($op->last->sv)};
 	    $lhs_v = "constant '" . $op->last->sv->sv."'";
 
-	} elsif($op->last->name eq 'null' &&
+	} elsif ($op->last->name eq 'null' &&
 		$op->last->oldname eq 'list') {
 	    get_list_proto($op->first,$cv);
 	}
-
 
 	$lhs_v = $lhs = "unknown" unless($lhs);
 	$rhs_v = $rhs = "unknown" unless($rhs);
 	
 	$target_v = $target = "" unless($target);
 
-
-	return if($target eq '' && $const);
-
+	return if ($target eq '' && $const);
 
 	#first lets determine what the expression returns
 	# if they are equal the expression returns that
 	# otherwise it returns what is higher on he inclusion team
-	
 	{
 	    my($is_lhs, $is_rhs) = (0,0);
-	    if($lhs->can("check") && $lhs->check($rhs)) {
+	    if ($lhs->can("check") && $lhs->check($rhs)) {
 		$is_lhs = 1;
-	    } elsif($lhs->isa($rhs)) {
+	    } elsif ($lhs->isa($rhs)) {
 		$is_lhs = 1;
 	    }
 
-	    if($rhs->can("check") && $rhs->check($lhs)) {
+	    if ($rhs->can("check") && $rhs->check($lhs)) {
 		$is_rhs = 1;
-	    } elsif($rhs->isa($lhs)) {
+	    } elsif ($rhs->isa($lhs)) {
 		$is_rhs = 1;
 	    }
-	    if($is_lhs && $is_rhs) {
+	    if ($is_lhs && $is_rhs) {
 		$expr = $lhs;
 
-	    } elsif($is_lhs) {
+	    } elsif ($is_lhs) {
 		$expr = $lhs;
 #		print "$lhs < $rhs\n";
-	    } elsif($is_rhs) {
+	    } elsif ($is_rhs) {
 		$expr = $rhs;
 #		print "$rhs < $lhs\n";
 	    } else {
@@ -326,11 +319,11 @@ sub match_protos {
 	}
 	
 
-#	return if(!$lhs and $op->first->name eq 'const');
+#	return if (!$lhs and $op->first->name eq 'const');
 	
 #
 
-	unless($target) {
+	unless ($target) {
 	    #the target is empty
 	    $op_returns{$op->seq}->{type} = $expr;
 	    $op_returns{$op->seq}->{name} = $expr_v;
@@ -343,8 +336,10 @@ sub match_protos {
 
 
 
-	if((!$target->isa($expr) and !$expr->isa($target)) or ($target->can('check') && !$target->check($expr))) {
-	    if($mod) {
+	if (  (!$target->isa($expr) and !$expr->isa($target)) 
+	   or ($target->can('check') && !$target->check($expr))) 
+	{
+	    if ($mod) {
 		die "Type mismatch, can't " . $op->name .
 		    " $rhs ($rhs_v) to $lhs ($lhs_v) at " .
 			$optimize::state->file . ":" .
@@ -384,19 +379,19 @@ sub unimport {
 sub get_type { # TODO also get attributes. see optimize
     my($op, $cv) = @_;
     my ($type, $value, $const) = ("","",0);
-    if($op->name eq 'padsv'
+    if ($op->name eq 'padsv'
        && exists($typed{$cv->ROOT->seq}->{$op->targ})) {
 	$type   = $typed{$cv->ROOT->seq}->{$op->targ}->{type};
 	$value  = $typed{$cv->ROOT->seq}->{$op->targ}->{name};
-    } elsif(exists($op_returns{$op->seq})) {
+    } elsif (exists($op_returns{$op->seq})) {
 	$type  = $op_returns{$op->seq}->{type};
 	$value = $op_returns{$op->seq}->{name};
-    } elsif($op->name eq 'const' &&
+    } elsif ($op->name eq 'const' &&
 	    exists($const_map{ref($op->sv)})) {
 	$type  = $const_map{ref($op->sv)};
 	$value = "constant '" . $op->sv->sv."'";
 	$const++;
-    } elsif($op->name eq 'null' &&
+    } elsif ($op->name eq 'null' &&
 	    $op->oldname eq 'list') {
 	get_list_proto($op,$cv);
     } else {
@@ -411,19 +406,19 @@ sub get_list_proto {
     # print "start\n";
     my @type;
     my @name;
-    while(ref($o) ne 'B::NULL') {
+    while (ref($o) ne 'B::NULL') {
 	my $kid = $o;
-	if($o->name eq 'null') {
+	if ($o->name eq 'null') {
 	    $kid = $o->first;
 	}
-	if($kid->name eq 'padsv' &&
+	if ($kid->name eq 'padsv' &&
 	   exists($typed{$cv->ROOT->seq}->{$kid->targ})) {
 	    push @type, $typed{$cv->ROOT->seq}->{$kid->targ}->{type};
 	    push @name, $typed{$cv->ROOT->seq}->{$kid->targ}->{name};	
-	} elsif(exists($op_returns{$kid->seq})) {
+	} elsif (exists($op_returns{$kid->seq})) {
 	    push @type, $op_returns{$kid->seq}->{type};
 	    push @name, $op_returns{$kid->seq}->{name};
-	} elsif($kid->name eq 'const' &&
+	} elsif ($kid->name eq 'const' &&
 		exists($const_map{ref($kid->sv)})) {
 	    push @type, $const_map{ref($kid->sv)};
 	    push @name, $kid->sv->sv;
@@ -435,7 +430,7 @@ sub get_list_proto {
 	$o = $o->sibling;
     }
 
-    if(@type > 1) {
+    if (@type > 1) {
 	$op_returns{$op->seq}->{type} = \@type;
 	$op_returns{$op->seq}->{name} = \@name;
     } else {
@@ -452,7 +447,7 @@ our $dummy = 1;
 package int;
 our $dummy = 1;
 sub check {
-    return 0 if($_[0] eq 'int' && ($_[1] ne 'number' && $_[1] ne 'int'));
+    return 0 if ($_[0] eq 'int' && ($_[1] ne 'number' && $_[1] ne 'int'));
     return 1;
 }
 our $valid_attr = '^(int|double|string|unsigned|register|temporary|ro|readonly)$';
@@ -479,7 +474,7 @@ sub FETCH_SCALAR_ATTRIBUTES {
 package double;
 use base qw(int);
 sub check {
-    return 0 if($_[1] eq 'string');
+    return 0 if ($_[1] eq 'string');
     return 1;
 }
 our $dummy = 1;
@@ -488,7 +483,7 @@ our $dummy = 1;
 package number;
 use base qw(double);
 sub check {
-    return 0 if($_[1] eq 'string');
+    return 0 if ($_[1] eq 'string');
     return 1;
 }
 our $dummy = 1;
@@ -520,6 +515,7 @@ and adds type attribute definitions.
 =head1 SYNOPSIS
 
     my double $foo = "string"; #compile time error
+    sub foo (int) { my ($foo) = @_ };
     sub foo (int $foo) { my ($foo) = @_ };
     foo("hi"); #compile time Type mismatch error
 
@@ -530,20 +526,21 @@ and adds type attribute definitions.
     my int @array = (0..10); # optimized internal representation
     $array[2] = '2'; # compile time Type mismatch error
 
-    my string %hash : readonly = (foo => any, bar => any); # optimized gperf representation
-    print $hash{foo}; # faster lookup
+    my string %hash : const = (foo => any, bar => any); # optimized representation
+    print $hash{foo}; # faster O(1) lookup
     $hash{new} = 1;   # compile time Type mismatch error
 
 =head1 DESCRIPTION
 
 This pragma uses the optimize module to analyze the optree and
-turns on compile-time type checking.
+turns on compile-time type checking, using my,our and sub type declarations.
 
 It is also the base for optimizing compiler passes, for perl CORE (planned)
 and for L<B::CC> compiled code (done).
 
 Currently we support SCALAR lexicals with the type classes
-B<int>, B<double>, B<number>, B<string> and user defined classes.
+B<int>, B<double>, B<number>, B<string> and user defined classes for 
+subroutine prototypes.
 
 The implicit casting rules are as follows:
 
@@ -557,9 +554,13 @@ Normal type casting is allowed both up and down the inheritance tree,
 so in theory user defined classes should work already, requires one
 to do use base or set C<@ISA> at compile-time in a BEGIN block.
 
-Implemented are only SCALAR types yet, not ARRAY not HASH.
+Implemented are only SCALAR types yet, not ARRAY, not HASH.
 
 =head2 ATTRIBUTES
+
+To weaken strict compile-time type checks we can add attributes. 
+This also allows to get away with less base types. Typically attributes 
+are added later to allow compilation.
 
 Planned type attributes are B<int>, B<double>, B<string>,
 B<unsigned>, B<ro> and B<readonly>, eventually also B<register>, B<temporary>.
@@ -620,7 +621,7 @@ values of the same sub differ you will get an error message.
 Arguments are declared with prototype syntax, they can either be named
 or just typed, if typed only the calling convertions are checked, if
 named then that named lexical will get that type without the need
-for expliticty typing it, thus allowing list assignment from C<@_>.
+for explicitly typing it, thus allowing list assignment from C<@_>.
 
 =head2 EXPORT
 
@@ -633,19 +634,27 @@ Please report bugs and submit patches using http://rt.cpan.org/
 
 =head1 SEE ALSO
 
-L<optimize> L<B::Generate> L<optimizer> L<B::CC/TYPES>
+L<optimize> L<B::Generate> L<B::CC/TYPES>
+L<typesafety> L<Moose>
 
 =head1 AUTHOR
 
-Arthur Bergman, E<lt>ABERGMAN@CPAN.ORGE<gt> 2002 (type checks)
+Artur Bergman, E<lt>ABERGMAN@CPAN.ORGE<gt> 2002 (type checks)
 Reini Urban, E<lt>RURBAN@CPAN.ORGE<gt> 2011 (type attrs and type optim)
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2002 by Arthur Bergman
+Copyright 2002 by Artur Bergman
 Copyright 2011 by Reini Urban
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
 =cut
+
+# Local Variables:
+#   mode: cperl
+#   cperl-indent-level: 4
+#   fill-column: 78
+# End:
+# vim: expandtab shiftwidth=4:

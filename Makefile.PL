@@ -5,10 +5,9 @@ WriteMakefile
   (
    NAME	           => "types",
    VERSION_FROM    => "lib/types.pm",
-   PREREQ_PM => {'B::Generate' => '1.34',
-                 'optimize'    => '0.02',
-                 'Hook::Scope' => '0.04',
-                 'optimizer'   => '0.05',
+   PREREQ_PM => {'B::Generate' => '1.36',
+                 'optimize'    => '0.03',
+		 'B::Hooks::EndOfScope' => '0.09',
                  'B::Utils'    => '0',
                 },
    ($] >= 5.005 ?
