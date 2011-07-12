@@ -40,7 +40,7 @@ sub check {
     return unless $op;
     my $cv = $op->find_cv();
 
-    #if ($^H & HINT_TYPES) {
+    #return unless $^H & HINT_TYPES; # lexical blocks not yet
     unless ($optimize::state->private & HINT_TYPES) {
       return;
     }
@@ -598,7 +598,7 @@ OK (classes only):
   my int $i;
   my double $d;
 
-NOT YET OK (attributes):
+NOT YET OK (attributes with my, only our works):
 
   my int $i :register;
   my $i :int;
@@ -630,7 +630,6 @@ None.
 =head1 BUGS
 
 Please report bugs and submit patches using http://rt.cpan.org/
-
 
 =head1 SEE ALSO
 
