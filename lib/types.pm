@@ -6,7 +6,7 @@ use warnings;
 use optimize;
 
 our $VERSION;
-$VERSION = "0.05_03";
+$VERSION = "0.05_04";
 # do { my @r = (q$Revision: 1.5 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 my %typed;
@@ -38,10 +38,11 @@ sub check {
     my $class = shift;
     my $op = shift;
     return unless $op;
+    # $DB::single = 1 if defined &DB::DB; # magic to allow debugging into CHECK blocks
     my $cv = $op->find_cv();
 
     #return unless $^H & HINT_TYPES; # lexical blocks not yet
-    unless ($optimize::state->private & HINT_TYPES) {
+    if (defined($optimize::state) and !($optimize::state->private & HINT_TYPES)) {
       return;
     }
 
@@ -63,12 +64,14 @@ sub check {
 
     if ($op->name eq 'padsv') {
 	my $target = (($cv->PADLIST->ARRAY)[0]->ARRAY)[$op->targ];
-	if (UNIVERSAL::isa($target,'B::SV') && $target->FLAGS & SVpad_TYPED) {
+        if ($target) {
+	  if (UNIVERSAL::isa($target,'B::SV') && $target->FLAGS & SVpad_TYPED) {
 	    $typed{$cv->ROOT->seq}->{$op->targ}->{type} = $target->SvSTASH->NAME;
 	    $typed{$cv->ROOT->seq}->{$op->targ}->{name} = $target->PV;
-	} elsif (UNIVERSAL::isa($target,'B::SV') &&
-		exists($typed{$cv->ROOT->seq}->{$target->PV})) {
+	  } elsif (UNIVERSAL::isa($target,'B::SV') &&
+		   exists($typed{$cv->ROOT->seq}->{$target->PV})) {
 	    $typed{$cv->ROOT->seq}->{$op->targ} = $typed{$cv->ROOT->seq}->{$target->PV};
+	  }
 	}
     }
     if ($cv->FLAGS & SVf_POK && !$function_params{$cv->START->seq}) {

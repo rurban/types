@@ -91,6 +91,7 @@ the string as first arg to entersub, and the method_named op can be replaced by
 gv => &Class::subname.
 
     pushmark
+        const PV "Class"
         args ...
     gv => *Class::subname
     entersub

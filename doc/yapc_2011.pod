@@ -1,9 +1,16 @@
 =head1 use types;
 
-YAPC::US 2011
+YAPC::EU 2011
 
 B<rurban> - Reini Urban <br>
-C<vienna.pm>, C<houston.pm>
+C<vienna.pm> => C<houston.pm>
+
+=head1 Goal
+
+<br><br>
+
+Provide type semantics to enable more compile-time
+optimizations, to make Perl and compiled Perl smaller and faster.
 
 =head1 Outline
 
@@ -11,53 +18,55 @@ C<vienna.pm>, C<houston.pm>
 
 =item Status Quo: CORE types
 
-C<< my TYPE $i; my My::Class $o; >> <br>
-C<< Declaration only. package TYPE must exist >>
+C<< my TYPE $i; my My::Class $o; >> # Declaration only <br>
+package TYPE must exist
+
+=item Optimizations planned for 5.16 - 5.18
+
+smaller and faster, ensured at compile-time:<br> 
+faster method calls, fix types, declarations via class and attributes, 
+typed arrays + hashes, perfect hashes.
 
 =item Artur Bergman's B<types> module
 
-C<< Declare and check type safety. int, double, number, string. 
-params and return values. >>
-
-=item Optimizations planned for 5.16
-
-C<< smaller and faster, ensured at compile-time. 
-typed arrays + hashes, perfect hashes, fast method calls,
-type declarations via class and attributes, fix types. >>
+Declare and check type safety. int, double, number, string. 
+params and return values.
 
 =back
 
-=head1 Who am I
+=head1 About me
 
-B<rurban> active in p5p since 1995.
+<img src=pix/austria-shitty-little-country.jpg>
 
-maintains B<cygwin perl> since 5.8.8 
-and 3-4 modules: illguts, B<B::*> => 5.10, 
+=head1 About me
+
+Architect. Mainly LISP for several years. Perl as better build system.
+
+B<rurban> maintains B<cygwin perl> since 5.8.8 
+and some modules: illguts, B<B::*> => 5.10,
 mainly the "compiler".
 
-In the future a lot more time for the compiler and CORE.
+No perl dayjob, just for fun. Until now.
 
-I'm known as the BAD guy on p5p who started fighting with Nick.
-Sorry about that. Sometimes I'm just arrogant and stupid, but 
-unfortunately not as funny as Matt.
+In the future a B<lot> more time for the compiler and CORE.
+Left B<AVL> (I<automotive industry>), went to B<cPanel> to 
+improve the compiler.
 
 =head1 Perl's Type System
 
-Yes, the language already has one.
-
 =begin perl
 
-  my int $var; # or our
+my int $var; # or our
 
-  # my :attribs are not known at compile-time, only our.
-  $ perl -cw -e'package int; package main; our int $i:const;'
+# my :attribs are not known at compile-time, only our.
+$ perl -cw -e 'package int; package main; our int $i:const;'
     Invalid SCALAR attribute: const at -e line 1
-  $ perl -cw -e'package int; package main; my int $i:const;'
+$ perl -cw -e 'package int; package main; my int $i:const;'
     -e syntax OK
 
-  sub name (proto) {} => proto: &name->pv
-
 =end perl
+
+FETCH_SCALAR_ATTRIBUTES => New B<CHECK_SCALAR_ATTRIBUTES> callback for C<my>.
 
 =head1 Perl's Type System
 
@@ -72,14 +81,49 @@ Yes, the language already has one. CORE:
 
 Only a few out-of-CORE implementations: <br>
 
-Moose, fields, <strike>types, typesafety</strike>, Lexical::Types
+Moose, fields, <strike>types, typesafety</strike>, Lexical::Types,
+Attribute::Types I<(run-time)>
 
 B<Params>:  C<Devel::Declare>, C<Params::Validate>, C<Params::Classify> <br>
 B<Objects>: C<Class::Meta>, C<Moose>
 
+=head1 Prototypes
+
+No standard prototype language, no CPAN prototype parser!
+
+=begin perl
+
+# types 0.x
+sub foo (int $foo) { my ($foo) = @_ } # return type implicit. 
+#No optree injection as in Devel::Declare
+
+# typesafety
+sub foo (int; int, undef) # returns int
+
+# types 1.0
+sub foo (int $i => int) { return 2 * $i } # return type explicit
+
+=end perl
+
+=head1 Prototypes
+
+No standard prototype language, no CPAN prototype parser!
+
+=begin perl
+
+# Devel::Declare, Method::Signatures
+method hello (Str :$who, Int :$age where { $_ > 0 }) {
+  $self->say("Hello ${who}, I am ${age} years old!");
+}
+
+# Moose
+has 'accessor' => (isa => Int, is => 'rw', default => 1);
+
+=end perl
+
 =head1 Perl's Type System
 
-At first a look CORE types, not the language:
+At first a look at CORE types, not the language:
 
 B<SCALAR> (non-strict, VB-like): IV, NV, UV, PV, ...
 
@@ -113,7 +157,7 @@ B<SCALAR> (non-strict, VB-like)
 
 multiple types (IV,NV,PV) per variable, context dependent.
 
-IV - integer unblessed, untied
+Typed IV: integer unblessed, untied. C<my int $i;> I<~SV_SMAGIC =C<< > >> SVf_FAKE: no head>
 
 <img src=pix/sviv-14.png height=204px width=278px> => <img src=pix/sviv-new.png height=204px width=278px>
 
@@ -239,7 +283,7 @@ Declaration already possible now!
 
 B<int> must be a package definition.
 
-<small>Note: C<@a> is declared as C<int>, but not blessed.</small>
+<small>Note: C<@a> is currently declared as C<int>, but not blessed.</small>
 
 =head1 Perl's Type System - HASH
 
@@ -305,7 +349,8 @@ Keys STRING only, Values are typed.
 
 =head1 Perfect HASH
 
-Perfect hashes - I<guaranteed O(1) lookup, dynamic hash function generation>
+Perfect hashes - I<guaranteed O(1) lookup, dynamic hash function generation, no collisions><br>
+Library B<cmph> BDZ algorithm (I<"RAM hashing">)
 
 =over
 
@@ -320,8 +365,6 @@ Perfect hashes - I<guaranteed O(1) lookup, dynamic hash function generation>
 study untyped hash => copies the old perl hash (HV) 
 to new perfect hash (PH).
 
-C<:const> hashes are always C<:perfect>
-
 =head1 Perfect HASH
 
 Perfect hash. Should be typed to optimize implementation.
@@ -332,6 +375,7 @@ Perfect hash. Should be typed to optimize implementation.
 
 =end perl
 
+C<:const> hashes are always C<:perfect><br>
 No need to study with :const and init on declaration.
 
 =begin perl
@@ -411,7 +455,7 @@ Features: STASH ("class hash"), @ISA (mro), DESTROY
 
 B<OBJECTS>: typed, but dynamic.
 
-Class by STASH, Inheritance by @ISA (mro), magic DESTROY methods.
+Class by STASH, Inheritance by @ISA (mro), magic DESTROY and CLONE methods.
 
 Four method calls possible:
 
@@ -537,9 +581,10 @@ if defined &Class::method
 
 =end perl
 
-or C<package Class> B<:locked> or in Moose immutable.
-
+or C<package Class> B<:locked> or in Moose immutable.<br>
 i.e. not changed at run-time.
+
+=E<gt> 4% faster method calls.
 
 Note: C<@Class::ISA> B<:const> = C<qw(bla);> does not help.
 

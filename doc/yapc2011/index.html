@@ -4,12 +4,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-<title>use types YAPC::US 2011</title>
+<title>use types YAPC::EU 2011</title>
 <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
 <meta name="generator" content="pod2s5 0.08" />
 <meta name="generator" content="S5" />
 <meta name="version" content="S5 1.1" />
-<meta name="presdate" content="Ashville Tue Jun 28, 2011" />
+<meta name="presdate" content="Riga Tue Aug 16, 2011" />
 <meta name="author" content="rurban" />
 <meta name="company" content="&nbsp;" />
 <!-- configuration parameters -->
@@ -47,15 +47,24 @@ img#me05 {top: 43px;left: 36px;}
 <div id="currentSlide"></div>
 <div id="header"></div>
 <div id="footer">
-<h1>Reini Urban &#8226; Ashville Tue Jun 28, 2011</h1>
-<h2>use types YAPC::US 2011</h2></div>
+<h1>Reini Urban &#8226; Riga Tue Aug 16, 2011</h1>
+<h2>use types YAPC::EU 2011</h2></div>
 </div><div class="slide">
 <h1>use types;
 
-</h1><p>YAPC::US 2011
+</h1><p>YAPC::EU 2011
 
 </p><p><b>rurban</b> - Reini Urban <br>
-<code>vienna.pm</code>, <code>houston.pm</code>
+<code>vienna.pm</code> => <code>houston.pm</code>
+
+</p></div>
+<div class="slide">
+<h1>Goal
+
+</h1><p><br><br>
+
+</p><p>Provide type semantics to enable more compile-time
+optimizations, to make Perl and compiled Perl smaller and faster.
 
 </p></div>
 <div class="slide">
@@ -63,53 +72,57 @@ img#me05 {top: 43px;left: 36px;}
 
 </h1><ul><li level="1">Status Quo: CORE types
 
-<p><code>my TYPE $i; my My::Class $o;</code> <br>
-<code>Declaration only. package TYPE must exist</code>
+<p><code>my TYPE $i; my My::Class $o;</code> # Declaration only <br>
+package TYPE must exist
+
+</p></li><li level="1">Optimizations planned for 5.16 - 5.18
+
+<p>smaller and faster, ensured at compile-time:<br> 
+faster method calls, fix types, declarations via class and attributes, 
+typed arrays + hashes, perfect hashes.
 
 </p></li><li level="1">Artur Bergman's <b>types</b> module
 
-<p><code>Declare and check type safety. int, double, number, string. 
-params and return values.</code>
-
-</p></li><li level="1">Optimizations planned for 5.16
-
-<p><code>smaller and faster, ensured at compile-time. 
-typed arrays + hashes, perfect hashes, fast method calls,
-type declarations via class and attributes, fix types.</code>
+<p>Declare and check type safety. int, double, number, string. 
+params and return values.
 
 </p></li></ul></div>
 <div class="slide">
-<h1>Who am I
+<h1>About me
 
-</h1><p><b>rurban</b> active in p5p since 1995.
+</h1><p><img src=pix/austria-shitty-little-country.jpg>
 
-</p><p>maintains <b>cygwin perl</b> since 5.8.8 
-and 3-4 modules: illguts, <b>B::*</b> => 5.10, 
+</p></div>
+<div class="slide">
+<h1>About me
+
+</h1><p>Architect. Mainly LISP for several years. Perl as better build system.
+
+</p><p><b>rurban</b> maintains <b>cygwin perl</b> since 5.8.8 
+and some modules: illguts, <b>B::*</b> => 5.10,
 mainly the "compiler".
 
-</p><p>In the future a lot more time for the compiler and CORE.
+</p><p>No perl dayjob, just for fun. Until now.
 
-</p><p>I'm known as the BAD guy on p5p who started fighting with Nick.
-Sorry about that. Sometimes I'm just arrogant and stupid, but 
-unfortunately not as funny as Matt.
+</p><p>In the future a <b>lot</b> more time for the compiler and CORE.
+Left <b>AVL</b> (<i>automotive industry</i>), went to <b>cPanel</b> to 
+improve the compiler.
 
 </p></div>
 <div class="slide">
 <h1>Perl's Type System
 
-</h1><p>Yes, the language already has one.
-
-</p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$var</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;or&nbsp;our</i></font><font color="#7f7f7f"><i><BR>
+</h1><b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$var</font>;&nbsp;<font color="#7f7f7f"><i>#&nbsp;or&nbsp;our</i></font><font color="#7f7f7f"><i><BR>
 </i></font><BR>
-&nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;my&nbsp;:attribs&nbsp;are&nbsp;not&nbsp;known&nbsp;at&nbsp;compile-time,&nbsp;only&nbsp;our.</i></font><font color="#7f7f7f"><i><BR>
-</i></font>&nbsp;&nbsp;$&nbsp;perl&nbsp;<font color="#ffa500">-c</font>w&nbsp;<font color="#ffa500">-e'</font><font color="#ff0000">package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;our&nbsp;int&nbsp;$i:const;</font><font color="#ffa500">'</font><BR>
+<font color="#7f7f7f"><i>#&nbsp;my&nbsp;:attribs&nbsp;are&nbsp;not&nbsp;known&nbsp;at&nbsp;compile-time,&nbsp;only&nbsp;our.</i></font><font color="#7f7f7f"><i><BR>
+</i></font>$&nbsp;perl&nbsp;<font color="#ffa500">-c</font>w&nbsp;<font color="#ffa500">-e</font>&nbsp;<font color="#ffa500">'</font><font color="#ff0000">package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;our&nbsp;int&nbsp;$i:const;</font><font color="#ffa500">'</font><BR>
 &nbsp;&nbsp;&nbsp;&nbsp;Invalid&nbsp;<font color="#007f00">SCALAR</font>&nbsp;attribute:&nbsp;const&nbsp;at&nbsp;<font color="#ffa500">-e</font>&nbsp;line&nbsp;<font color="#00007f">1</font><BR>
-&nbsp;&nbsp;$&nbsp;perl&nbsp;<font color="#ffa500">-c</font>w&nbsp;<font color="#ffa500">-e'</font><font color="#ff0000">package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;my&nbsp;int&nbsp;$i:const;</font><font color="#ffa500">'</font><BR>
+$&nbsp;perl&nbsp;<font color="#ffa500">-c</font>w&nbsp;<font color="#ffa500">-e</font>&nbsp;<font color="#ffa500">'</font><font color="#ff0000">package&nbsp;int;&nbsp;package&nbsp;main;&nbsp;my&nbsp;int&nbsp;$i:const;</font><font color="#ffa500">'</font><BR>
 &nbsp;&nbsp;&nbsp;&nbsp;<font color="#ffa500">-e</font>&nbsp;syntax&nbsp;OK<BR>
 <BR>
-&nbsp;&nbsp;<b>sub&nbsp;</b><font color="#007f00">name</font>&nbsp;(proto)&nbsp;{}&nbsp;=&gt;&nbsp;proto:&nbsp;&amp;name-&gt;pv<BR>
-<BR>
-</div>
+<p>FETCH_SCALAR_ATTRIBUTES => New <b>CHECK_SCALAR_ATTRIBUTES</b> callback for <code>my</code>.
+
+</p></div>
 <div class="slide">
 <h1>Perl's Type System
 
@@ -120,16 +133,47 @@ unfortunately not as funny as Matt.
 <BR>
 <p>Only a few out-of-CORE implementations: <br>
 
-</p><p>Moose, fields, <strike>types, typesafety</strike>, Lexical::Types
+</p><p>Moose, fields, <strike>types, typesafety</strike>, Lexical::Types,
+Attribute::Types <i>(run-time)</i>
 
 </p><p><b>Params</b>:  <code>Devel::Declare</code>, <code>Params::Validate</code>, <code>Params::Classify</code> <br>
 <b>Objects</b>: <code>Class::Meta</code>, <code>Moose</code>
 
 </p></div>
 <div class="slide">
+<h1>Prototypes
+
+</h1><p>No standard prototype language, no CPAN prototype parser!
+
+</p><font color="#7f7f7f"><i>#&nbsp;types&nbsp;0.x</i></font><font color="#7f7f7f"><i><BR>
+</i></font><b>sub&nbsp;</b><font color="#007f00">foo</font>&nbsp;(<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$foo</font>)&nbsp;{&nbsp;<b>my</b>&nbsp;(<font color="#0000ff">$foo</font>)&nbsp;=&nbsp;<font color="#0000ff">@_</font>&nbsp;}&nbsp;<font color="#7f7f7f"><i>#&nbsp;return&nbsp;type&nbsp;implicit.&nbsp;</i></font><font color="#7f7f7f"><i><BR>
+</i></font><font color="#7f7f7f"><i>#No&nbsp;optree&nbsp;injection&nbsp;as&nbsp;in&nbsp;Devel::Declare</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+<font color="#7f7f7f"><i>#&nbsp;typesafety</i></font><font color="#7f7f7f"><i><BR>
+</i></font><b>sub&nbsp;</b><font color="#007f00">foo</font>&nbsp;(<font color="#007f00">int</font>;&nbsp;<font color="#007f00">int</font>,&nbsp;<font color="#007f00">undef</font>)&nbsp;<font color="#7f7f7f"><i>#&nbsp;returns&nbsp;int</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+<font color="#7f7f7f"><i>#&nbsp;types&nbsp;1.0</i></font><font color="#7f7f7f"><i><BR>
+</i></font><b>sub&nbsp;</b><font color="#007f00">foo</font>&nbsp;(<font color="#007f00">int</font>&nbsp;<font color="#0000ff">$i</font>&nbsp;=&gt;&nbsp;<font color="#007f00">int</font>)&nbsp;{&nbsp;<b>return</b>&nbsp;<font color="#00007f">2</font>&nbsp;<font color="#ffa500">*</font>&nbsp;<font color="#0000ff">$i</font>&nbsp;}&nbsp;<font color="#7f7f7f"><i>#&nbsp;return&nbsp;type&nbsp;explicit</i></font><font color="#7f7f7f"><i><BR>
+</i></font><BR>
+</div>
+<div class="slide">
+<h1>Prototypes
+
+</h1><p>No standard prototype language, no CPAN prototype parser!
+
+</p><font color="#7f7f7f"><i>#&nbsp;Devel::Declare,&nbsp;Method::Signatures</i></font><font color="#7f7f7f"><i><BR>
+</i></font>method&nbsp;hello&nbsp;(Str&nbsp;:<font color="#0000ff">$who</font>,&nbsp;<font color="#007f00">Int</font>&nbsp;:<font color="#0000ff">$age</font>&nbsp;where&nbsp;{&nbsp;<font color="#0000ff"><b>$_</b></font>&nbsp;&gt;&nbsp;0&nbsp;})&nbsp;{<BR>
+&nbsp;&nbsp;<font color="#0000ff">$self</font>-&gt;<font color="#0000ff">say</font>(<font color="#ffa500">"</font><font color="#ff0000">Hello&nbsp;</font><font color="#0000ff">${who}</font><font color="#ff0000">,&nbsp;I&nbsp;am&nbsp;</font><font color="#0000ff">${age}</font><font color="#ff0000">&nbsp;years&nbsp;old!</font><font color="#ffa500">"</font>);<BR>
+}<BR>
+<BR>
+<font color="#7f7f7f"><i>#&nbsp;Moose</i></font><font color="#7f7f7f"><i><BR>
+</i></font>has&nbsp;<font color="#ffa500">'</font><font color="#ff0000">accessor</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;(isa&nbsp;=&gt;&nbsp;<font color="#007f00">Int</font>,&nbsp;is&nbsp;=&gt;&nbsp;<font color="#ffa500">'</font><font color="#ff0000">rw</font><font color="#ffa500">'</font>,&nbsp;default&nbsp;=&gt;&nbsp;<font color="#00007f">1</font>);<BR>
+<BR>
+</div>
+<div class="slide">
 <h1>Perl's Type System
 
-</h1><p>At first a look CORE types, not the language:
+</h1><p>At first a look at CORE types, not the language:
 
 </p><p><b>SCALAR</b> (non-strict, VB-like): IV, NV, UV, PV, ...
 
@@ -169,7 +213,7 @@ unfortunately not as funny as Matt.
 
 </p><p>multiple types (IV,NV,PV) per variable, context dependent.
 
-</p><p>IV - integer unblessed, untied
+</p><p>Typed IV: integer unblessed, untied. <code>my int $i;</code> <i>~SV_SMAGIC =<code>></code> SVf_FAKE: no head</i>
 
 </p><p><img src=pix/sviv-14.png height=204px width=278px> => <img src=pix/sviv-new.png height=204px width=278px>
 
@@ -285,7 +329,7 @@ used as package name for Objects. i.e. <i>"Class pointer"</i>
 <BR>
 <p><b>int</b> must be a package definition.
 
-</p><p><small>Note: <code>@a</code> is declared as <code>int</code>, but not blessed.</small>
+</p><p><small>Note: <code>@a</code> is currently declared as <code>int</code>, but not blessed.</small>
 
 </p></div>
 <div class="slide">
@@ -351,7 +395,8 @@ Keys STRING only, Values typed
 <div class="slide">
 <h1>Perfect HASH
 
-</h1><p>Perfect hashes - <i>guaranteed O(1) lookup, dynamic hash function generation</i>
+</h1><p>Perfect hashes - <i>guaranteed O(1) lookup, dynamic hash function generation, no collisions</i><br>
+Library <b>cmph</b> BDZ algorithm (<i>"RAM hashing"</i>)
 
 </p><ul><li level="1"><code>my %h :const;</code> => untyped perfect hash of unknown size<br>
 
@@ -362,8 +407,6 @@ Keys STRING only, Values typed
 </li></ul><p>study untyped hash => copies the old perl hash (HV) 
 to new perfect hash (PH).
 
-</p><p><code>:const</code> hashes are always <code>:perfect</code>
-
 </p></div>
 <div class="slide">
 <h1>Perfect HASH
@@ -372,7 +415,8 @@ to new perfect hash (PH).
 
 </p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#007f00">int</font>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const&nbsp;=&nbsp;(<font color="#ffa500">'</font><font color="#ff0000">my</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#ffa500">'</font><font color="#ff0000">your</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">2</font>);<BR>
 <BR>
-<p>No need to study with :const and init on declaration.
+<p><code>:const</code> hashes are always <code>:perfect</code><br>
+No need to study with :const and init on declaration.
 
 </p>&nbsp;&nbsp;<b>my</b>&nbsp;<font color="#0000ff">%h</font>&nbsp;:const&nbsp;=&nbsp;(<font color="#ffa500">'</font><font color="#ff0000">my</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">1</font>,&nbsp;<font color="#ffa500">'</font><font color="#ff0000">your</font><font color="#ffa500">'</font>&nbsp;=&gt;&nbsp;<font color="#00007f">2</font>);<BR>
 &nbsp;&nbsp;<font color="#7f7f7f"><i>#&nbsp;untyped:&nbsp;value&nbsp;=&nbsp;SV</i></font><font color="#7f7f7f"><i><BR>
@@ -443,7 +487,7 @@ to new perfect hash (PH).
 
 </h1><p><b>OBJECTS</b>: typed, but dynamic.
 
-</p><p>Class by STASH, Inheritance by @ISA (mro), magic DESTROY methods.
+</p><p>Class by STASH, Inheritance by @ISA (mro), magic DESTROY and CLONE methods.
 
 </p><p>Four method calls possible:
 
@@ -539,9 +583,10 @@ $object->$method()
 <BR>
 <b>if</b>&nbsp;<font color="#007f00">defined</font>&nbsp;&amp;<font color="#007f00">Class::method</font><BR>
 <BR>
-<p>or <code>package Class</code> <b>:locked</b> or in Moose immutable.
+<p>or <code>package Class</code> <b>:locked</b> or in Moose immutable.<br>
+i.e. not changed at run-time.
 
-</p><p>i.e. not changed at run-time.
+</p><p>=> 4% faster method calls.
 
 </p><p>Note: <code>@Class::ISA</code> <b>:const</b> = <code>qw(bla);</code> does not help.
 
