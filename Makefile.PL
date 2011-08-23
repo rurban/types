@@ -7,6 +7,7 @@ WriteMakefile
    VERSION_FROM    => "lib/types.pm",
    PREREQ_PM => {'B::Generate' => '1.36',
                  'optimize'    => '0.03',
+		 'optimizer'   => '0.06',
 		 'B::Hooks::EndOfScope' => '0.09',
                  'B::Utils'    => '0',
                 },

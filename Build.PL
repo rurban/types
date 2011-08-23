@@ -1,7 +1,6 @@
 #use strict;
 use Module::Build;
 
-
 my $build = Module::Build->new
     (
      module_name => 'types',
@@ -12,7 +11,7 @@ my $build = Module::Build->new
       'perl'        => '5.008',
       'optimize'    => '0.03',
       'B::Generate' => '1.36',
-      'optimizer'   => '0.05',
+      'optimizer'   => '0.06',
       'B::Hooks::EndOfScope' => '0.09',
       'B::Utils'    => '0',
      }
