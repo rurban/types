@@ -81,7 +81,7 @@ sub check {
 	my $i = 1;
 	foreach (split ",", $cv->PV)  {
 	    my ($type, $sigil, $name) = split /\b/, $_;
-            #    print "$type - $sigil - $name \n";	
+            #    print "$type - $sigil - $name \n";
 	    push @type, $type;
 	    if ($sigil && $name)  {
 		push @name, $sigil.$name;
@@ -158,7 +158,7 @@ sub match_protos {
 	my ($source_name, $source_type) =
 	    ($source->{name}->[$i], $source->{type}->[$i]);
 	if ((!$target_type->isa($source_type) and !$source_type->isa($target_type))
-           or ($target_type->can('check') && !$target_type->check($source_type))) 
+           or ($target_type->can('check') && !$target_type->check($source_type)))
         {
 	    die "Type mismatch in list for" .
 		" $source_type ($source_name) to $target_type ($target_name) at " .
@@ -166,7 +166,6 @@ sub match_protos {
 			$optimize::state->line . "\n";
 	}
 
-	
     }
 }
 
@@ -204,9 +203,9 @@ sub match_protos {
 			    " return value $function_returns{$cv->START->seq}->{type}".
 				" at $function_returns{$cv->START->seq}->{file}\n";
 	}
-	
+
 	my $subname = "";
-	
+
 	if (ref($cv->GV) ne 'B::SPECIAL' && $cv->GV->SAFENAME ne '__ANON__') {
 	    $subname = $cv->GV->STASH->NAME . "::" . $cv->GV->SAFENAME;
 	}
@@ -214,7 +213,7 @@ sub match_protos {
 	   $function_returns{$subname}->{type} ne $type) {
 	    die "Function $subname redefined with a different type (was $function_returns{$subname}->{type} now $type) at " . $optimize::state->file . ":" . $optimize::state->line . "\n";
 	}
-	
+
 	$function_returns{$cv->START->seq}->{type} = $type;
 	$function_returns{$cv->START->seq}->{name} = $value;
 	$function_returns{$cv->START->seq}->{file} = $optimize::state->file . ":" . $optimize::state->line;
@@ -227,7 +226,7 @@ sub match_protos {
     }
 
     if (ref($op) eq 'B::BINOP') {
-	
+
 	my ($lhs, $rhs, $target, $expr, $const, $mod);
 	my ($lhs_v, $rhs_v, $target_v, $expr_v);
 
@@ -279,7 +278,7 @@ sub match_protos {
 
 	$lhs_v = $lhs = "unknown" unless($lhs);
 	$rhs_v = $rhs = "unknown" unless($rhs);
-	
+
 	$target_v = $target = "" unless($target);
 
 	return if ($target eq '' && $const);
@@ -320,10 +319,10 @@ sub match_protos {
 #		$optimize::state->file . ": . " .
 #		    $optimize::state->line . "\n";
 	}
-	
+
 
 #	return if (!$lhs and $op->first->name eq 'const');
-	
+
 #
 
 	unless ($target) {
@@ -332,15 +331,15 @@ sub match_protos {
 	    $op_returns{$op->seq}->{name} = $expr_v;
 	    return;
 	}
-	
+
 #	print "$expr - $target\n";
 #	print "$target->isa($expr): ". $target->isa($expr) . "\n";
 #	print "$expr->isa($target): ". $expr->isa($target) . "\n";
 
 
 
-	if (  (!$target->isa($expr) and !$expr->isa($target)) 
-	   or ($target->can('check') && !$target->check($expr))) 
+	if (  (!$target->isa($expr) and !$expr->isa($target))
+	   or ($target->can('check') && !$target->check($expr)))
 	{
 	    if ($mod) {
 		die "Type mismatch, can't " . $op->name .
@@ -417,7 +416,7 @@ sub get_list_proto {
 	if ($kid->name eq 'padsv' &&
 	   exists($typed{$cv->ROOT->seq}->{$kid->targ})) {
 	    push @type, $typed{$cv->ROOT->seq}->{$kid->targ}->{type};
-	    push @name, $typed{$cv->ROOT->seq}->{$kid->targ}->{name};	
+	    push @name, $typed{$cv->ROOT->seq}->{$kid->targ}->{name};
 	} elsif (exists($op_returns{$kid->seq})) {
 	    push @type, $op_returns{$kid->seq}->{type};
 	    push @name, $op_returns{$kid->seq}->{name};
@@ -542,7 +541,7 @@ It is also the base for optimizing compiler passes, for perl CORE (planned)
 and for L<B::CC> compiled code (done).
 
 Currently we support SCALAR lexicals with the type classes
-B<int>, B<double>, B<number>, B<string> and user defined classes for 
+B<int>, B<double>, B<number>, B<string> and user defined classes for
 subroutine prototypes.
 
 The implicit casting rules are as follows:
@@ -561,8 +560,8 @@ Implemented are only SCALAR types yet, not ARRAY, not HASH.
 
 =head2 ATTRIBUTES
 
-To weaken strict compile-time type checks we can add attributes. 
-This also allows to get away with less base types. Typically attributes 
+To weaken strict compile-time type checks we can add attributes.
+This also allows to get away with less base types. Typically attributes
 are added later to allow compilation.
 
 Planned type attributes are B<int>, B<double>, B<string>,
