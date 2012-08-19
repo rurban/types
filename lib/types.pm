@@ -4,9 +4,11 @@ use 5.008;
 use strict;
 use warnings;
 use optimize;
+#require optimize; optimize->import;
 
 our $VERSION;
-$VERSION = "0.05_05";
+$VERSION = "0.05_06";
+our $DEBUG = 1;
 # do { my @r = (q$Revision: 1.5 $ =~ /\d+/g); $r[0] = 0; sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
 my %typed;
@@ -19,37 +21,64 @@ use B qw(OPpTARGET_MY OPf_MOD SVf_POK);
 use B::Utils;
 
 our %const_map = (
-                  "B::NV" => 'double',
+                  "B::NV" => 'number',
                   "B::IV" => 'int',
                   "B::PV" => 'string',
 	    );
 
 sub compare_type {
-    my($a,$b) = @_;
+    my ($a, $b) = @_;
     if ($a eq $b) {
 	return 1;
     }
     return 0;
 }
 
-eval qq(sub B::NULL::name { "void" }) unless exists &B::NULL::name;
-#use Data::Dumper;
+sub dbgprint(@) { print @_ if $DEBUG; }
+#sub B::NULL::name { "void" };
+if ($DEBUG) { require Data::Dumper; Data::Dumper->import }
+
+sub match_protos {
+    my ($target, $source) = @_;
+    my $targets = scalar @{$target->{name}} - 1;
+    my $sources = scalar @{$source->{name}} - 1;
+    my $stateloc = $optimize::state->file . ":" .
+		   $optimize::state->line;
+
+    if ($sources < $targets) {
+	die "Not enough prototypes at $stateloc\n";
+    }
+    foreach my $i (0..$targets) {
+	my ($target_name, $target_type) =
+	    ($target->{name}->[$i], $target->{type}->[$i]);
+	my ($source_name, $source_type) =
+	    ($source->{name}->[$i], $source->{type}->[$i]);
+	if ((!$target_type->isa($source_type) and !$source_type->isa($target_type))
+           or ($target_type->can('check') && !$target_type->check($source_type)))
+        {
+	    die "Type mismatch in prototypes for" .
+	      " $source_type ($source_name) to $target_type ($target_name) at $stateloc\n";
+	}
+    }
+}
+
 sub check {
     my $class = shift;
     my $op = shift;
     return unless $op;
-    # $DB::single = 1 if defined &DB::DB; # magic to allow debugging into CHECK blocks
-    my $cv = $op->find_cv();
 
-    #return unless $^H & HINT_TYPES; # lexical blocks not yet
-    if (defined($optimize::state) and !($optimize::state->private & HINT_TYPES)) {
-      return;
+    $DB::single = 1 if defined &DB::DB and $DEBUG; # breakpoint to debug into CHECK blocks
+    my $stateloc;
+    if (defined $optimize::state and ref $optimize::state) {
+	$stateloc = $optimize::state->file . ":" . $optimize::state->line;
+	#return unless $^H & HINT_TYPES; # lexical blocks not yet
+	if (!($optimize::state->private & HINT_TYPES)) {
+	    return;
+	}
     }
+    dbgprint "padsv ",$op->flags,"\n" if $op->name eq 'padsv';
 
-#    if ($op->name eq 'padsv') {
-#	print $op->flags ."\n";
-#    }
-
+    my $cv = $op->find_cv();
     if (ref($op) eq 'B::PADOP' && $op->name eq 'gv') {
 #	$op->dump;
 	my $target = (($cv->PADLIST->ARRAY)[1]->ARRAY)[$op->padix];
@@ -79,9 +108,10 @@ sub check {
 	my @type;
 	my @name;
 	my $i = 1;
+	# TODO types-1.x: support return type argument after " => "
 	foreach (split ",", $cv->PV)  {
 	    my ($type, $sigil, $name) = split /\b/, $_;
-            #    print "$type - $sigil - $name \n";	
+            dbgprint "$type - $sigil - $name \n";
 	    push @type, $type;
 	    if ($sigil && $name)  {
 		push @name, $sigil.$name;
@@ -92,13 +122,10 @@ sub check {
 	    }
 	    $i++;
 	}
-
 	$function_params{$cv->START->seq}->{name} = \@name;
 	$function_params{$cv->START->seq}->{type} = \@type;
-
-	#print $cv->PV . "\n";
+	dbgprint "proto ",$cv->PV,"\n";
 	$cv->PV(";@");
-
     }
 
     if (ref($op->next) ne 'B::NULL' &&
@@ -106,7 +133,6 @@ sub check {
 	($op->next->name eq 'null' && $op->next->oldname =~/2cv$/))) {
 	my $entersub = $op->next;
 	my $i = 1;
-
 	while ($entersub->name ne 'entersub' &&
 	      ref($entersub->next) ne 'B::NULL') {
 	    $i++ if ($entersub->name ne 'null');
@@ -118,14 +144,15 @@ sub check {
 	    if (ref($op) eq 'B::PADOP') {
 		$sv = (($cv->PADLIST->ARRAY)[1]->ARRAY)[$op->padix];
 	    } else {
-		die;
+		die "no PADOP before entersub";
 	    }
 	    if (ref($sv->CV) ne 'B::SPECIAL') {
 		my $foo = $sv->CV->START->seq;
 		if (exists($function_returns{$foo})) {
 		    $op_returns{$op->seq + $i}->{type} = $function_returns{$foo}->{type};
-		    $op_returns{$op->seq + $i}->{name} = $sv->STASH->NAME . "::" . $sv->SAFENAME."()";
-                    # print "AND IT HAS A RETURN VALUE $i\n";
+		    $op_returns{$op->seq + $i}->{name} = $sv->STASH->NAME . "::"
+		      . $sv->SAFENAME."()";
+                    dbgprint "AND IT HAS A RETURN VALUE $i\n";
 		}
 		if (exists($function_params{$foo})) {
 		    my $param_list = $entersub->first();
@@ -133,51 +160,23 @@ sub check {
 		    $param_list = delete($op_returns{$param_list->seq});
 		    pop(@{$param_list->{type}});
 		    pop(@{$param_list->{name}});
-                    # print Data::Dumper::Dumper($function_params{$foo});
-                    # print Data::Dumper::Dumper($param_list);
+                    dbgprint Data::Dumper::Dumper($function_params{$foo});
+                    dbgprint Data::Dumper::Dumper($param_list);
 		    match_protos($function_params{$foo}, $param_list);
 		}
-                # $sv->CV->dump();
+                $sv->CV->dump() if $DEBUG;
 	    }
 	}
     }
 
-sub match_protos {
-    my ($target, $source) = @_;
-    my $targets = scalar @{$target->{name}} - 1;
-    my $sources = scalar @{$source->{name}} - 1;
-
-    if ($sources < $targets) {
-	die "Not enough items in list at " .
-	    $optimize::state->file . ":" .
-		$optimize::state->line . "\n";
-    }
-    foreach my $i (0..$targets) {
-	my ($target_name, $target_type) =
-	    ($target->{name}->[$i], $target->{type}->[$i]);
-	my ($source_name, $source_type) =
-	    ($source->{name}->[$i], $source->{type}->[$i]);
-	if ((!$target_type->isa($source_type) and !$source_type->isa($target_type))
-           or ($target_type->can('check') && !$target_type->check($source_type))) 
-        {
-	    die "Type mismatch in list for" .
-		" $source_type ($source_name) to $target_type ($target_name) at " .
-		    $optimize::state->file . ":" .
-			$optimize::state->line . "\n";
-	}
-
-	
-    }
-}
-
-    if (0) {
+    if ($DEBUG) {
       if (ref($op->next) ne 'B::NULL') {
-        print $op->name . " -> " . $op->next->name . "\n";
+        dbgprint $op->name . " -> " . $op->next->name . "\n";
       }
       if (ref($op->next) ne 'B::NULL' &&
          ref($op->next->next) ne 'B::NULL' &&
          $op->next->next->name eq 'entersub') {
-        print "sub entry\n";
+        dbgprint "sub entry\n";
       }
     }
 
@@ -185,11 +184,11 @@ sub match_protos {
 	get_list_proto($op,$cv);
     }
 
-#print join(" ",ref($op->next), ref($cv->START), $op->next->name, $op->next->next->name),"\n";
+    dbgprint join(" ",ref($op->next), ref($cv->START), $op->next->name, $op->next->next->name),"\n";
     if (ref($op->next) ne 'B::NULL' &&
        ref($cv->START) ne 'B::NULL' &&
-       ($op->next->name eq 'lineseq' && $op->next->next->name =~/^leave/)
-       || $op->next->name eq 'return')
+       ($op->next->name eq 'return' ||
+	($op->next->name eq 'lineseq' && $op->next->next->name =~ /^leave/)))
     {
 	my ($type, $value, $const) = get_type($op, $cv);
 	my $lineseq = $op->next;
@@ -198,36 +197,34 @@ sub match_protos {
       	if (exists($function_returns{$cv->START->seq}) &&
 	   $function_returns{$cv->START->seq}->{type} ne $type) {
 	    die "Return type mismatch: " . $op->name .
-		" $type at " .
-		    $optimize::state->file . ":" .
-			$optimize::state->line . " does not match" .
+		" $type at $stateloc does not match" .
 			    " return value $function_returns{$cv->START->seq}->{type}".
 				" at $function_returns{$cv->START->seq}->{file}\n";
 	}
-	
+
 	my $subname = "";
-	
+
 	if (ref($cv->GV) ne 'B::SPECIAL' && $cv->GV->SAFENAME ne '__ANON__') {
 	    $subname = $cv->GV->STASH->NAME . "::" . $cv->GV->SAFENAME;
 	}
 	if ($subname && exists($function_returns{$subname}) &&
 	   $function_returns{$subname}->{type} ne $type) {
-	    die "Function $subname redefined with a different type (was $function_returns{$subname}->{type} now $type) at " . $optimize::state->file . ":" . $optimize::state->line . "\n";
+	    die "Function $subname redefined with a different type (was $function_returns{$subname}->{type} now $type) at $stateloc\n";
 	}
-	
+
 	$function_returns{$cv->START->seq}->{type} = $type;
 	$function_returns{$cv->START->seq}->{name} = $value;
-	$function_returns{$cv->START->seq}->{file} = $optimize::state->file . ":" . $optimize::state->line;
+	$function_returns{$cv->START->seq}->{file} = $stateloc;
 
 	if ($subname) {
 	    $function_returns{$subname} = $function_returns{$cv->START->seq};
-            # print "GOT subname $subname\n";
+            dbgprint "GOT subname $subname\n";
 	}
-        # print "scope leave retval ($type, $value): " . $op->name . "-" . $lineseq->next->name . "\n";
+        dbgprint "scope leave retval ($type, $value): " . $op->name . "-" . $lineseq->next->name . "\n";
     }
 
     if (ref($op) eq 'B::BINOP') {
-	
+
 	my ($lhs, $rhs, $target, $expr, $const, $mod);
 	my ($lhs_v, $rhs_v, $target_v, $expr_v);
 
@@ -259,7 +256,7 @@ sub match_protos {
 	    $lhs    = $typed{$cv->ROOT->seq}->{$op->last->targ}->{type};
 	    $lhs_v  = $typed{$cv->ROOT->seq}->{$op->last->targ}->{name};
 	    if ($op->last->flags & OPf_MOD) {
-		die "target should be empty" if ($target);
+		die "target should be empty" if $target;
 		$target = $lhs;
 		$target_v = $lhs_v;
 		$mod++;
@@ -279,7 +276,7 @@ sub match_protos {
 
 	$lhs_v = $lhs = "unknown" unless($lhs);
 	$rhs_v = $rhs = "unknown" unless($rhs);
-	
+
 	$target_v = $target = "" unless($target);
 
 	return if ($target eq '' && $const);
@@ -311,19 +308,15 @@ sub match_protos {
 #		print "$rhs < $lhs\n";
 	    } else {
 		die "Type mismatch, can't " . $op->name .
-		    " $rhs ($rhs_v) to $lhs ($lhs_v) at " .
-			$optimize::state->file . ":" .
-			    $optimize::state->line . "\n";
+		    " $rhs ($rhs_v) to $lhs ($lhs_v) at $stateloc\n";
 	    }
 	    $expr_v = "$lhs_v, $rhs_v";
-#	    print "Expression returns ($expr) ($expr_v)" .
-#		$optimize::state->file . ": . " .
-#		    $optimize::state->line . "\n";
+#	    print "Expression returns ($expr) ($expr_v) $stateloc\n";
 	}
-	
+
 
 #	return if (!$lhs and $op->first->name eq 'const');
-	
+
 #
 
 	unless ($target) {
@@ -332,26 +325,22 @@ sub match_protos {
 	    $op_returns{$op->seq}->{name} = $expr_v;
 	    return;
 	}
-	
+
 #	print "$expr - $target\n";
 #	print "$target->isa($expr): ". $target->isa($expr) . "\n";
 #	print "$expr->isa($target): ". $expr->isa($target) . "\n";
 
 
 
-	if (  (!$target->isa($expr) and !$expr->isa($target)) 
-	   or ($target->can('check') && !$target->check($expr))) 
+	if (  (!$target->isa($expr) and !$expr->isa($target))
+	   or ($target->can('check') && !$target->check($expr)))
 	{
 	    if ($mod) {
 		die "Type mismatch, can't " . $op->name .
-		    " $rhs ($rhs_v) to $lhs ($lhs_v) at " .
-			$optimize::state->file . ":" .
-			    $optimize::state->line . "\n";
+		    " $rhs ($rhs_v) to $lhs ($lhs_v) at $stateloc\n";
 	    } else {
 		die "Type mismatch, can't assign result of $lhs $lhs_v "
-		    . $op->name . " $rhs $rhs_v to $target ($target_v) at "
-			. $optimize::state->file . ":"
-			    . $optimize::state->line . "\n";
+		    . $op->name . " $rhs $rhs_v to $target ($target_v) at $stateloc\n";
 	    }
 	}
 	$op_returns{$op->seq}->{type} = $target;
@@ -362,15 +351,17 @@ sub match_protos {
 
 BEGIN { $optimize::loaded{"types"} = __PACKAGE__ }
 
-# block level types optimization not yet enabled
+# global and block level types optimization pragma
 sub import {
     my ($package, $filename, $line) = caller;
     #$^H |= 0x00020000;
     #$^H{"use_types"}++;
     $^H |= HINT_TYPES;
+    $DB::single = 1 if defined &DB::DB; # magic to allow debugging into CHECK blocks
     optimize->register(\&check, $package, $filename, $line);
 }
 
+# leave block level types optimization pragma
 sub unimport {
     my ($package, $filename, $line) = caller;
     $^H &= ~ HINT_TYPES;
@@ -417,7 +408,7 @@ sub get_list_proto {
 	if ($kid->name eq 'padsv' &&
 	   exists($typed{$cv->ROOT->seq}->{$kid->targ})) {
 	    push @type, $typed{$cv->ROOT->seq}->{$kid->targ}->{type};
-	    push @name, $typed{$cv->ROOT->seq}->{$kid->targ}->{name};	
+	    push @name, $typed{$cv->ROOT->seq}->{$kid->targ}->{name};
 	} elsif (exists($op_returns{$kid->seq})) {
 	    push @type, $op_returns{$kid->seq}->{type};
 	    push @name, $op_returns{$kid->seq}->{name};
@@ -453,7 +444,7 @@ sub check {
     return 0 if ($_[0] eq 'int' && ($_[1] ne 'number' && $_[1] ne 'int'));
     return 1;
 }
-our $valid_attr = '^(int|double|string|unsigned|register|temporary|ro|readonly)$';
+our $valid_attr = '^(int|number|string|unsigned|register|temporary|const|ro|readonly)$';
 sub MODIFY_SCALAR_ATTRIBUTES {
   my $pkg = shift;
   my $v = shift;
@@ -473,26 +464,26 @@ sub FETCH_SCALAR_ATTRIBUTES {
   my $v = shift;
   return @{"$pkg\::$v\::attributes"};
 }
+#check-time hook for my vars since 5.18
+sub CHECK_SCALAR_ATTRIBUTES {
+  no strict 'refs';
+  my $pkg = shift;
+  my $v = shift;
+  return @{"$pkg\::$v\::attributes"};
+}
 
-package double;
+package number;
 use base qw(int);
 sub check {
     return 0 if ($_[1] eq 'string');
     return 1;
 }
 our $dummy = 1;
-*float = *double;
+*float = *number;
 
-package number;
-use base qw(double);
-sub check {
-    return 0 if ($_[1] eq 'string');
-    return 1;
-}
-our $dummy = 1;
 package string;
 use base qw(number);
-sub check { return 1};
+sub check { return 1 };
 1;
 __END__
 
@@ -505,7 +496,7 @@ types - Perl pragma for type checking and optimizations
 
   use types;
   my int $int;
-  my double $float;
+  my number $float;
   $int = $float; # BOOM compile time Type mismatch error
 
 =head1 ABSTRACT
@@ -517,13 +508,13 @@ and adds type attribute definitions.
 
 =head1 SYNOPSIS
 
-    my double $foo = "string"; #compile time error
+    my number $foo = "string"; #compile time error
     sub foo (int) { my ($foo) = @_ };
     sub foo (int $foo) { my ($foo) = @_ };
     foo("hi"); #compile time Type mismatch error
 
     my int $int;
-    sub foo { my double $foo; return $foo }
+    sub foo { my number $foo; return $foo }
     $int = $foo; # compile time Type mismatch error
 
     my int @array = (0..10); # optimized internal representation
@@ -535,23 +526,21 @@ and adds type attribute definitions.
 
 =head1 DESCRIPTION
 
-This pragma uses the optimize module to analyze the optree and
-turns on compile-time type checking, using my,our and sub type declarations.
+This pragma uses the optimize module to analyze the optree and turns on
+compile-time type checking, using my, our and sub type declarations.
 
 It is also the base for optimizing compiler passes, for perl CORE (planned)
 and for L<B::CC> compiled code (done).
 
 Currently we support SCALAR lexicals with the type classes
-B<int>, B<double>, B<number>, B<string> and user defined classes for 
+B<int>, B<double>, B<number>, B<string> and user defined classes for
 subroutine prototypes.
 
 The implicit casting rules are as follows:
 
     int    < > number
-    int      > double
-    double < > number
+    int      > number
     number   > string
-
 
 Normal type casting is allowed both up and down the inheritance tree,
 so in theory user defined classes should work already, requires one
@@ -561,17 +550,17 @@ Implemented are only SCALAR types yet, not ARRAY, not HASH.
 
 =head2 ATTRIBUTES
 
-To weaken strict compile-time type checks we can add attributes. 
-This also allows to get away with less base types. Typically attributes 
-are added later to allow compilation.
+To weaken strict compile-time type checks we can add attributes.  This also
+allows to get away with less base types. Typically attributes are added later
+to allow compilation.
 
-Planned type attributes are B<int>, B<double>, B<string>,
-B<unsigned>, B<ro> and B<readonly>, eventually also B<register>, B<temporary>.
+Planned type attributes are B<int>, B<number>, B<string>, B<unsigned>,
+B<const>/B<ro>/B<readonly>.
 
-The attributes are perl attributes, and int|double|string are either
+The attributes are perl attributes, and int|number|string are either
 classes or hints for more allowed types.
 
-  C<my int $i :double;>  declares a NV with SVf_IOK. Same as C<my $i:int:double;>?
+  C<my int $i :number;>  declares a NV with SVf_IOK. Same as C<my $i:int:number;>?
   C<my int $i;>          declares an IV. Same as C<my $i:int;>?
   C<my int $i :string;>  declares a PVIV. Same as C<my $i:int:string;>?
 
@@ -582,10 +571,10 @@ classes or hints for more allowed types.
 
 B<unsigned> is valid for int only and declares an UV. This helps e.g. i_opt with bit manip.
 
-B<ro> and B<readonly> throw a compile-time error on write access and may
+B<const>/B<ro>/B<readonly> throw a compile-time error on write access and may
 optimize the internal structure of the variable.
-E.g. In CORE hashes may be optimized to perfect hashes for faster lookup.
-Array key lookup for int and double will be optimized.
+E.g. In newer perl's hashes may be optimized to perfect hashes for faster lookup.
+Array key lookup for int and number will be optimized.
 In B::CC we don't need to write back the variable to perl (lexical write_back).
 
 B<register> denotes optionally a short and hot life-time. for loop
@@ -599,11 +588,10 @@ They are more aggressivly destroyed and ignored.
 OK (classes only):
 
   my int $i;
-  my double $d;
+  my number $d;
 
 NOT YET OK (attributes with my, only our works):
 
-  my int $i :register;
   my $i :int;
   my $const :int:ro;
   my int $uv :unsigned;
@@ -647,7 +635,7 @@ Reini Urban, E<lt>RURBAN@CPAN.ORGE<gt> 2011 (type attrs and type optim)
 =head1 COPYRIGHT AND LICENSE
 
 Copyright 2002 by Artur Bergman
-Copyright 2011 by Reini Urban
+Copyright 2011-2012 by Reini Urban
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
